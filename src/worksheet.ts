@@ -14,6 +14,10 @@ export interface WorksheetDiagnostic {
   message: string;
 }
 
+export interface WorksheetResultOptions {
+  maxResultLength: number;
+}
+
 export function isWorksheetPath(fileName: string): boolean {
   return fileName.endsWith(WORKSHEET_SUFFIX);
 }
@@ -36,7 +40,11 @@ export function stripResultComments(text: string): string {
     .join("\n");
 }
 
-export function applyWorksheetResults(text: string, results: Map<number, string>): string {
+export function applyWorksheetResults(
+  text: string,
+  results: Map<number, string>,
+  options: WorksheetResultOptions = { maxResultLength: 500 },
+): string {
   return splitLines(stripResultComments(text))
     .map((line, index) => {
       const sourceLine = index + 1;
@@ -45,7 +53,7 @@ export function applyWorksheetResults(text: string, results: Map<number, string>
         return line;
       }
 
-      return `${line.trimEnd()} // ${RESULT_PREFIX} ${formatResult(result)}`;
+      return `${line.trimEnd()} // ${RESULT_PREFIX} ${formatResult(result, options.maxResultLength)}`;
     })
     .join("\n");
 }
@@ -58,6 +66,7 @@ export function instrumentWorksheet(text: string, markerPrefix = createMarkerPre
   let blockDepth = 0;
   let previousContinues = false;
   let pendingDeclaration: { name: string; sourceLine: number } | undefined;
+  let pendingExpression: { sourceLine: number } | undefined;
 
   lines.forEach((line, index) => {
     const sourceLine = index + 1;
@@ -67,8 +76,17 @@ export function instrumentWorksheet(text: string, markerPrefix = createMarkerPre
       !previousContinues &&
       isExecutableTopLevelLine(trimmed);
     const declarationName = statementStart ? parseSimpleDeclarationName(trimmed) : undefined;
+    const printableExpression = statementStart && !declarationName && isPrintableExpressionLine(line, trimmed);
 
-    if (statementStart && !declarationName && isPrintableExpressionLine(line, trimmed)) {
+    if (pendingExpression) {
+      generated.push(stripTrailingLineComment(line));
+      generatedLineToSourceLine.push(sourceLine);
+    } else if (printableExpression && lineContinues(trimmed, 0)) {
+      pushMarker(generated, generatedLineToSourceLine, markerPrefix, sourceLine);
+      generated.push(`println(${stripTrailingLineComment(line).trimStart()}`);
+      generatedLineToSourceLine.push(sourceLine);
+      pendingExpression = { sourceLine };
+    } else if (printableExpression) {
       pushMarker(generated, generatedLineToSourceLine, markerPrefix, sourceLine);
       pushPrintableExpression(generated, generatedLineToSourceLine, line, sourceLine);
     } else {
@@ -77,6 +95,13 @@ export function instrumentWorksheet(text: string, markerPrefix = createMarkerPre
     }
 
     const nextBlockDepth = Math.max(0, blockDepth + braceDeltaOutsideStrings(line));
+    const nextContinues = lineContinues(trimmed, nextBlockDepth);
+
+    if (pendingExpression && nextBlockDepth === 0 && !nextContinues) {
+      generated.push(")");
+      generatedLineToSourceLine.push(pendingExpression.sourceLine);
+      pendingExpression = undefined;
+    }
 
     if (declarationName) {
       if (nextBlockDepth === 0) {
@@ -96,7 +121,7 @@ export function instrumentWorksheet(text: string, markerPrefix = createMarkerPre
     }
 
     blockDepth = nextBlockDepth;
-    previousContinues = lineContinues(trimmed, blockDepth);
+    previousContinues = nextContinues;
   });
 
   return {
@@ -198,11 +223,11 @@ function parseSimpleDeclarationName(trimmed: string): string | undefined {
 }
 
 function isPrintableExpressionLine(line: string, trimmed: string): boolean {
-  if (lineContinues(trimmed, 0)) {
+  if (/^(?:val|var|fun|class|object|interface|enum|typealias|annotation)\b/.test(trimmed)) {
     return false;
   }
 
-  if (/^(?:val|var|fun|class|object|interface|enum|typealias|annotation)\b/.test(trimmed)) {
+  if (/^(?:for|while|do|return|break|continue)\b/.test(trimmed)) {
     return false;
   }
 
@@ -243,8 +268,7 @@ function pushPrintableExpression(
     return;
   }
 
-  const commentIndex = findLineCommentIndex(line);
-  const expression = (commentIndex >= 0 ? line.slice(0, commentIndex) : line).trim();
+  const expression = stripTrailingLineComment(line).trim();
   generated.push(`println(${expression})`);
   generatedLineToSourceLine.push(sourceLine);
 }
@@ -257,13 +281,18 @@ function lineContinues(trimmed: string, blockDepth: number): boolean {
   return /[({[,:=+\-*/%&|?.]$/.test(trimmed) || trimmed.endsWith("->");
 }
 
-function formatResult(result: string): string {
+function formatResult(result: string, maxResultLength: number): string {
   const compact = result.replace(/\r\n/g, "\n").replace(/\n/g, "\\n").trim();
-  if (compact.length <= 500) {
+  if (compact.length <= maxResultLength) {
     return compact;
   }
 
-  return `${compact.slice(0, 497)}...`;
+  return `${compact.slice(0, Math.max(0, maxResultLength - 3))}...`;
+}
+
+function stripTrailingLineComment(line: string): string {
+  const commentIndex = findLineCommentIndex(line);
+  return commentIndex >= 0 ? line.slice(0, commentIndex).trimEnd() : line;
 }
 
 function findLineCommentIndex(line: string): number {

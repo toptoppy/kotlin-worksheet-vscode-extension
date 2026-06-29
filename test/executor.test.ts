@@ -32,4 +32,19 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
       severity: "error",
     });
   }, 20000);
+
+  it("runs a multiline expression worksheet", async () => {
+    const result = await executeWorksheet(
+      [
+        "listOf(",
+        "  1,",
+        "  2,",
+        ").sum()",
+      ].join("\n"),
+      { kotlinCommand: "kotlinc", timeoutMs: 10000 },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.results).toEqual(new Map([[1, "3"]]));
+  }, 20000);
 });

@@ -35,6 +35,14 @@ describe("worksheet text handling", () => {
     );
   });
 
+  it("truncates long results with a configurable limit", () => {
+    const results = new Map<number, string>([[1, "abcdefghijklmnopqrstuvwxyz"]]);
+
+    expect(applyWorksheetResults("val value = \"x\"", results, { maxResultLength: 10 })).toBe(
+      "val value = \"x\" // => abcdefg...",
+    );
+  });
+
   it("replaces existing results when applying new ones", () => {
     const results = new Map<number, string>([[1, "2"]]);
 
@@ -81,6 +89,27 @@ describe("worksheet instrumentation", () => {
     expect(instrumented.script).toContain("println(\"__MARKER__:1\")");
     expect(instrumented.script).toContain("println(\"__MARKER__:5\")");
     expect(instrumented.script).not.toContain("println(\"__MARKER__:2\")");
+  });
+
+  it("wraps multiline expressions so their values are printed", () => {
+    const instrumented = instrumentWorksheet(
+      [
+        "listOf(",
+        "  1,",
+        "  2,",
+        ").sum()",
+      ].join("\n"),
+      "__MARKER__:",
+    );
+
+    expect(instrumented.script).toBe([
+      "println(\"__MARKER__:1\")",
+      "println(listOf(",
+      "  1,",
+      "  2,",
+      ").sum()",
+      ")",
+    ].join("\n"));
   });
 
   it("captures println output without printing Unit", () => {

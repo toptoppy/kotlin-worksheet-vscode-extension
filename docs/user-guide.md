@@ -52,7 +52,8 @@ println("worksheets run top to bottom") // => worksheets run top to bottom
 {
   "kotlinWorksheet.kotlinCommand": "kotlinc",
   "kotlinWorksheet.runOnSave": true,
-  "kotlinWorksheet.timeoutMs": 10000
+  "kotlinWorksheet.timeoutMs": 10000,
+  "kotlinWorksheet.maxResultLength": 500
 }
 ```
 

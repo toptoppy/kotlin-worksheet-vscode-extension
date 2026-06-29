@@ -25,6 +25,7 @@ The adapter delegates evaluation to the executor and keeps VS Code APIs out of t
 - parse marker-delimited stdout
 - map Kotlin compiler diagnostics back to source lines
 - apply inline `// => ...` comments
+- truncate long inline results according to the configured limit
 
 The evaluator instruments scripts by inserting marker prints and explicit `println(...)` calls around simple worksheet expressions. This avoids relying on `kotlinc -script` display behavior, which does not reliably emit bare expression values once instrumentation is inserted.
 

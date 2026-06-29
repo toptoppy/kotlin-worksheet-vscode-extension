@@ -86,6 +86,7 @@ async function runWorksheetDocument(
     const config = vscode.workspace.getConfiguration("kotlinWorksheet", document.uri);
     const kotlinCommand = config.get<string>("kotlinCommand", "kotlinc");
     const timeoutMs = config.get<number>("timeoutMs", 10000);
+    const maxResultLength = config.get<number>("maxResultLength", 500);
     const source = stripResultComments(document.getText());
 
     output.clear();
@@ -121,7 +122,7 @@ async function runWorksheetDocument(
       return;
     }
 
-    const updatedText = applyWorksheetResults(source, execution.results);
+    const updatedText = applyWorksheetResults(source, execution.results, { maxResultLength });
     if (updatedText !== document.getText()) {
       await replaceDocumentText(document, updatedText);
     }
