@@ -8,6 +8,93 @@ Kotlin Worksheet evaluates `.worksheet.kts` files inside VS Code and writes resu
 - Kotlin compiler available as `kotlinc`, or configured through `kotlinWorksheet.kotlinCommand`
 - A trusted VS Code workspace for execution
 
+## Install The Extension
+
+### From VSIX
+
+1. Get the packaged extension file:
+
+   ```text
+   kotlin-worksheet-0.0.1.vsix
+   ```
+
+2. Open VS Code.
+3. Open the Command Palette.
+4. Run:
+
+   ```text
+   Extensions: Install from VSIX...
+   ```
+
+5. Select `kotlin-worksheet-0.0.1.vsix`.
+6. Reload VS Code if prompted.
+
+### From Source
+
+For local development or testing:
+
+```sh
+pnpm install
+pnpm package
+```
+
+Then install the generated `kotlin-worksheet-0.0.1.vsix` using `Extensions: Install from VSIX...`.
+
+## Install Kotlin
+
+The extension runs worksheets through the Kotlin command-line compiler.
+
+Check whether Kotlin is already installed:
+
+```sh
+kotlinc -version
+```
+
+If that command fails, install Kotlin with one of these methods:
+
+- macOS with Homebrew:
+
+  ```sh
+  brew install kotlin
+  ```
+
+- SDKMAN:
+
+  ```sh
+  sdk install kotlin
+  ```
+
+- Manual install:
+
+  Download Kotlin from the official Kotlin command-line compiler distribution and make sure `kotlinc` is on PATH.
+
+After installing Kotlin, restart VS Code so the extension can see the updated PATH.
+
+If your compiler is not named `kotlinc` or is not on PATH, set:
+
+```json
+{
+  "kotlinWorksheet.kotlinCommand": "/absolute/path/to/kotlinc"
+}
+```
+
+## Quick Start
+
+1. Open a trusted workspace in VS Code.
+2. Create a file named `demo.worksheet.kts`.
+3. Add:
+
+   ```kotlin
+   val language = "Kotlin"
+   language.uppercase()
+
+   val answer = 40 + 2
+   answer
+   ```
+
+4. Run `Kotlin Worksheet: Run`.
+5. Results appear as inline comments.
+
 ## Worksheet Files
 
 Create files ending with:

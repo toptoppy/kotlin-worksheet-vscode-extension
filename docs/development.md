@@ -42,6 +42,8 @@ kotlin-worksheet-0.0.1.vsix
 
 CI uploads the generated VSIX as the `kotlin-worksheet-vsix` workflow artifact.
 
+To install the generated package in VS Code, run `Extensions: Install from VSIX...` and select `kotlin-worksheet-0.0.1.vsix`.
+
 ## Full Check
 
 ```sh

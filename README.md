@@ -17,6 +17,20 @@ println("hello") // => hello
 
 The MVP runs worksheets with `kotlinc -script`, so it does not use a Gradle project classpath yet.
 
+## Install For Users
+
+Install from a local VSIX:
+
+1. Download or build `kotlin-worksheet-0.0.1.vsix`.
+2. Open VS Code.
+3. Run `Extensions: Install from VSIX...` from the Command Palette.
+4. Select `kotlin-worksheet-0.0.1.vsix`.
+5. Open a trusted workspace.
+6. Create a file ending in `.worksheet.kts`.
+7. Run `Kotlin Worksheet: Run`.
+
+Install the Kotlin compiler if `kotlinc -version` does not work in your terminal. After installing Kotlin, restart VS Code so the extension can see the updated PATH.
+
 ## Commands
 
 - `Kotlin Worksheet: Run`
