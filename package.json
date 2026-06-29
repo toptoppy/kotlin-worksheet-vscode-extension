@@ -1,0 +1,107 @@
+{
+  "name": "kotlin-worksheet",
+  "displayName": "Kotlin Worksheet",
+  "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:kotlin",
+    "onCommand:kotlinWorksheet.run",
+    "onCommand:kotlinWorksheet.clearResults",
+    "onCommand:kotlinWorksheet.newWorksheet",
+    "workspaceContains:**/*.worksheet.kts"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "kotlinWorksheet.run",
+        "title": "Kotlin Worksheet: Run"
+      },
+      {
+        "command": "kotlinWorksheet.clearResults",
+        "title": "Kotlin Worksheet: Clear Results"
+      },
+      {
+        "command": "kotlinWorksheet.newWorksheet",
+        "title": "Kotlin Worksheet: New Worksheet"
+      }
+    ],
+    "configuration": {
+      "title": "Kotlin Worksheet",
+      "properties": {
+        "kotlinWorksheet.kotlinCommand": {
+          "type": "string",
+          "default": "kotlinc",
+          "description": "Command used to run Kotlin scripts."
+        },
+        "kotlinWorksheet.runOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run worksheet files automatically when saved."
+        },
+        "kotlinWorksheet.timeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "description": "Maximum worksheet execution time in milliseconds."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "kotlin",
+        "aliases": [
+          "Kotlin",
+          "kotlin"
+        ],
+        "extensions": [
+          ".kt",
+          ".kts"
+        ]
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "kotlinWorksheet.run",
+          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "kotlinWorksheet.run",
+          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.clearResults",
+          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "group": "1_modification"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "vitest run",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/vscode": "1.100.0",
+    "@vscode/vsce": "^3.6.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

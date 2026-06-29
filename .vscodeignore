@@ -1,0 +1,10 @@
+.vscode/**
+.gitignore
+src/**
+test/**
+sample/**
+*.config.ts
+tsconfig.json
+pnpm-lock.yaml
+node_modules/**
+coverage/**
