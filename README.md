@@ -49,5 +49,6 @@ pnpm check
 - `docs/architecture.md`
 - `docs/development.md`
 - `docs/production-readiness.md`
+- `docs/action-items.md`
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`

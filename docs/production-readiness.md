@@ -2,6 +2,8 @@
 
 This checklist tracks the work needed before publishing Kotlin Worksheet for general use.
 
+For the remaining concrete task list, see `docs/action-items.md`.
+
 ## Completed
 
 - Local `kotlinc -script` evaluator.
