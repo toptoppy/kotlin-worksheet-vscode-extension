@@ -13,9 +13,11 @@ This checklist tracks the work needed before publishing Kotlin Worksheet for gen
 - Multi-line expression evaluation for simple expression blocks.
 - Timeout and cancellation support with process-group cleanup on Unix.
 - Unit and executor tests.
+- ESLint-based TypeScript linting.
 - CI for install, compile, test, and package.
 - VSIX artifact upload in CI.
 - Release, contribution, architecture, user, and development docs.
+- Actionable error when the configured Kotlin command cannot start.
 
 ## Required Before Marketplace Publishing
 

@@ -9,6 +9,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 ### Added
 
 - CI workflow that compiles, tests, packages, and uploads the VSIX artifact.
+- ESLint-based TypeScript linting gate.
 - Configurable inline result truncation.
 - Multi-line expression worksheet evaluation.
 - Worksheet cancellation from VS Code progress notifications.
@@ -18,6 +19,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 ### Fixed
 
 - Long-running worksheet cleanup now terminates the compiler process group on Unix.
+- Missing or invalid Kotlin command values now show an actionable startup error.
 
 ## [0.0.1] - 2026-06-29
 
