@@ -34,6 +34,8 @@ This produces:
 kotlin-worksheet-0.0.1.vsix
 ```
 
+CI uploads the generated VSIX as the `kotlin-worksheet-vsix` workflow artifact.
+
 ## Manual QA
 
 1. Open the project in VS Code.
