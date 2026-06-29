@@ -137,6 +137,14 @@ async function runWorksheetDocument(
       return;
     }
 
+    if (execution.startError) {
+      output.show(true);
+      void vscode.window.showErrorMessage(
+        `Unable to start Kotlin command '${kotlinCommand}'. Check kotlinWorksheet.kotlinCommand.`,
+      );
+      return;
+    }
+
     setDiagnostics(document, diagnostics, execution.diagnostics);
 
     if (!execution.success) {

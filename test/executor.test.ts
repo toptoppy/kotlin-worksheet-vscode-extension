@@ -69,4 +69,14 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.success).toBe(false);
     expect(result.cancelled).toBe(true);
   }, 15000);
+
+  it("reports a command start error", async () => {
+    const result = await executeWorksheet("val x = 1", {
+      kotlinCommand: "definitely-not-a-real-kotlinc-command",
+      timeoutMs: 1000,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.startError).toBeTruthy();
+  });
 });

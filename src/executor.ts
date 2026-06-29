@@ -14,6 +14,7 @@ export interface KotlinWorksheetExecution {
   diagnostics: WorksheetDiagnostic[];
   timedOut: boolean;
   cancelled: boolean;
+  startError?: string;
 }
 
 export interface KotlinWorksheetExecutionOptions {
@@ -52,6 +53,7 @@ export async function executeWorksheet(
       diagnostics,
       timedOut: processResult.timedOut,
       cancelled: processResult.cancelled,
+      startError: processResult.startError,
     };
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -64,6 +66,7 @@ interface ProcessResult {
   exitCode: number | null;
   timedOut: boolean;
   cancelled: boolean;
+  startError?: string;
 }
 
 function runKotlincScript(
@@ -139,6 +142,7 @@ function runKotlincScript(
         exitCode: null,
         timedOut,
         cancelled,
+        startError: cancelled ? undefined : error.message,
       });
     });
 
