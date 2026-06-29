@@ -4,3 +4,4 @@ dist/
 *.vsix
 .vscode-test/
 coverage/
+.code-review-graph/

@@ -37,8 +37,16 @@ pnpm compile
 pnpm test
 ```
 
+Run the full local verification before packaging or release:
+
+```sh
+pnpm check
+```
+
 ## Docs
 
-- [User guide](docs/user-guide.md)
-- [Architecture](docs/architecture.md)
-- [Development guide](docs/development.md)
+- `docs/user-guide.md`
+- `docs/architecture.md`
+- `docs/development.md`
+- `CHANGELOG.md`
+- `CONTRIBUTING.md`

@@ -12,6 +12,13 @@
     "Programming Languages",
     "Other"
   ],
+  "keywords": [
+    "kotlin",
+    "worksheet",
+    "script",
+    "repl",
+    "education"
+  ],
   "activationEvents": [
     "onLanguage:kotlin",
     "onCommand:kotlinWorksheet.run",
@@ -94,7 +101,9 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "check": "pnpm compile && pnpm test && pnpm package",
     "test": "vitest run",
+    "vscode:prepublish": "pnpm compile",
     "package": "vsce package --no-dependencies --allow-missing-repository"
   },
   "devDependencies": {
