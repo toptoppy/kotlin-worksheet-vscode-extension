@@ -14,6 +14,12 @@ pnpm compile
 
 Compiled extension files are written to `out/`.
 
+## Lint
+
+```sh
+pnpm lint
+```
+
 ## Test
 
 ```sh
@@ -35,6 +41,14 @@ kotlin-worksheet-0.0.1.vsix
 ```
 
 CI uploads the generated VSIX as the `kotlin-worksheet-vsix` workflow artifact.
+
+## Full Check
+
+```sh
+pnpm check
+```
+
+This lints, compiles TypeScript, runs tests, and packages the extension.
 
 ## Manual QA
 

@@ -4,6 +4,7 @@
 
 ```sh
 pnpm install
+pnpm lint
 pnpm compile
 pnpm test
 ```
@@ -22,7 +23,7 @@ Run:
 pnpm check
 ```
 
-This compiles TypeScript, runs tests, and packages the extension.
+This lints, compiles TypeScript, runs tests, and packages the extension.
 
 ## Commit Style
 

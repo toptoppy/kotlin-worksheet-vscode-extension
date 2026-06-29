@@ -2,12 +2,8 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import {
-  WorksheetDiagnostic,
-  instrumentWorksheet,
-  parseKotlinDiagnostics,
-  parseWorksheetOutput,
-} from "./worksheet.js";
+import type { WorksheetDiagnostic } from "./worksheet.js";
+import { instrumentWorksheet, parseKotlinDiagnostics, parseWorksheetOutput } from "./worksheet.js";
 
 export interface KotlinWorksheetExecution {
   success: boolean;

@@ -1,6 +1,8 @@
 .vscode/**
+.github/**
 .code-review-graph/**
 .gitignore
+eslint.config.mjs
 src/**
 test/**
 sample/**

@@ -107,16 +107,21 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "check": "pnpm compile && pnpm test && pnpm package",
+    "lint": "eslint .",
+    "check": "pnpm lint && pnpm compile && pnpm test && pnpm package",
     "test": "vitest run",
     "vscode:prepublish": "pnpm compile",
     "package": "vsce package --no-dependencies --allow-missing-repository"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
     "@types/vscode": "1.100.0",
     "@vscode/vsce": "^3.6.0",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.62.0",
     "vitest": "^3.2.4"
   }
 }
