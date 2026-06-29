@@ -47,4 +47,26 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.success).toBe(true);
     expect(result.results).toEqual(new Map([[1, "3"]]));
   }, 20000);
+
+  it("times out a long-running worksheet", async () => {
+    const result = await executeWorksheet("while (true) {}", { kotlinCommand: "kotlinc", timeoutMs: 1000 });
+
+    expect(result.success).toBe(false);
+    expect(result.timedOut).toBe(true);
+  }, 15000);
+
+  it("cancels a long-running worksheet", async () => {
+    const abortController = new AbortController();
+    const promise = executeWorksheet("while (true) {}", {
+      kotlinCommand: "kotlinc",
+      timeoutMs: 10000,
+      cancellationSignal: abortController.signal,
+    });
+
+    setTimeout(() => abortController.abort(), 1000);
+    const result = await promise;
+
+    expect(result.success).toBe(false);
+    expect(result.cancelled).toBe(true);
+  }, 15000);
 });

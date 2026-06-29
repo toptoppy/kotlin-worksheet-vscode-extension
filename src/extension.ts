@@ -93,7 +93,23 @@ async function runWorksheetDocument(
     output.appendLine(`Running ${document.fileName}`);
     output.appendLine(`Command: ${kotlinCommand} -script <worksheet>`);
 
-    const execution = await executeWorksheet(source, { kotlinCommand, timeoutMs });
+    const execution = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Running Kotlin worksheet",
+        cancellable: true,
+      },
+      (_progress, token) => {
+        const abortController = new AbortController();
+        const subscription = token.onCancellationRequested(() => abortController.abort());
+
+        return executeWorksheet(source, {
+          kotlinCommand,
+          timeoutMs,
+          cancellationSignal: abortController.signal,
+        }).finally(() => subscription.dispose());
+      },
+    );
 
     if (execution.stdout.trim()) {
       output.appendLine("");
@@ -111,6 +127,13 @@ async function runWorksheetDocument(
       output.appendLine("");
       output.appendLine(`Worksheet timed out after ${timeoutMs} ms.`);
       void vscode.window.showErrorMessage(`Kotlin worksheet timed out after ${timeoutMs} ms.`);
+      return;
+    }
+
+    if (execution.cancelled) {
+      output.appendLine("");
+      output.appendLine("Worksheet execution cancelled.");
+      void vscode.window.setStatusBarMessage("Kotlin worksheet cancelled", 2500);
       return;
     }
 
