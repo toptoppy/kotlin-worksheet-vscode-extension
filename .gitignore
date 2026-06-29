@@ -2,6 +2,7 @@ node_modules/
 out/
 dist/
 *.vsix
+/*.worksheet.kts
 .vscode-test/
 coverage/
 .code-review-graph/

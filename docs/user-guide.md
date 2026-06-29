@@ -6,6 +6,7 @@ Kotlin Worksheet evaluates `.worksheet.kts` files inside VS Code and writes resu
 
 - VS Code 1.100 or newer
 - Kotlin compiler available as `kotlinc`, or configured through `kotlinWorksheet.kotlinCommand`
+- Kotlin language support extension for syntax highlighting. This extension packs `fwcd.kotlin`, but install or enable a Kotlin syntax extension if `.kts` files still appear in one color.
 - A trusted VS Code workspace for execution
 
 ## Install The Extension
@@ -95,6 +96,36 @@ If your compiler is not named `kotlinc` or is not on PATH, set:
 4. Run `Kotlin Worksheet: Run`.
 5. Results appear as inline comments.
 
+## Result Comments
+
+Worksheet results are ordinary generated comments:
+
+```kotlin
+val answer = 40 + 2 // => 42
+```
+
+You can edit or remove `// => ...` comments manually. On the next worksheet run, the extension removes generated result comments and writes fresh results.
+
+Use `Kotlin Worksheet: Clear Results` to remove all generated result comments from the active worksheet.
+
+## Manual vs Auto-run
+
+The default mode is manual run. Use `Kotlin Worksheet: Run` when you want to evaluate the worksheet.
+
+To auto-run worksheets after save:
+
+- Click the `Kotlin WS Manual` status bar item while a `.worksheet.kts` file is active, or
+- Run `Kotlin Worksheet: Toggle Run On Save`, or
+- Set:
+
+  ```json
+  {
+    "kotlinWorksheet.runOnSave": true
+  }
+  ```
+
+If VS Code Auto Save is enabled, keep worksheet auto-run disabled unless you want the worksheet to execute after frequent saves.
+
 ## Worksheet Files
 
 Create files ending with:
@@ -132,13 +163,14 @@ println("worksheets run top to bottom") // => worksheets run top to bottom
 - `Kotlin Worksheet: Run`: evaluates the active worksheet.
 - `Kotlin Worksheet: Clear Results`: removes generated `// => ...` comments.
 - `Kotlin Worksheet: New Worksheet`: creates a starter worksheet file.
+- `Kotlin Worksheet: Toggle Run On Save`: switches between manual mode and run-on-save mode.
 
 ## Settings
 
 ```json
 {
   "kotlinWorksheet.kotlinCommand": "kotlinc",
-  "kotlinWorksheet.runOnSave": true,
+  "kotlinWorksheet.runOnSave": false,
   "kotlinWorksheet.timeoutMs": 10000,
   "kotlinWorksheet.maxResultLength": 500
 }

@@ -17,6 +17,7 @@ These items remain before publishing Kotlin Worksheet for general use.
 - Install the generated VSIX in a clean VS Code profile on Windows.
 - Verify `Kotlin Worksheet: Run` on a sample `.worksheet.kts` file.
 - Verify run-on-save behavior.
+- Verify the status bar toggle switches between manual and auto-run-on-save modes.
 - Verify `Kotlin Worksheet: Clear Results`.
 - Verify missing `kotlinc` error messaging.
 - Verify timeout and cancellation behavior from the VS Code progress notification.

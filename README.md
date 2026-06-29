@@ -14,6 +14,7 @@ println("hello") // => hello
 
 - VS Code 1.100 or newer
 - A local Kotlin compiler on PATH, or configure `kotlinWorksheet.kotlinCommand`
+- Kotlin syntax highlighting from a Kotlin language extension. This extension packs `fwcd.kotlin`.
 
 The MVP runs worksheets with `kotlinc -script`, so it does not use a Gradle project classpath yet.
 
@@ -36,11 +37,12 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `Kotlin Worksheet: Run`
 - `Kotlin Worksheet: Clear Results`
 - `Kotlin Worksheet: New Worksheet`
+- `Kotlin Worksheet: Toggle Run On Save`
 
 ## Settings
 
 - `kotlinWorksheet.kotlinCommand`: command used to run Kotlin scripts, default `kotlinc`
-- `kotlinWorksheet.runOnSave`: run `.worksheet.kts` files on save, default `true`
+- `kotlinWorksheet.runOnSave`: run `.worksheet.kts` files on save, default `false`
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
 
 ## Development

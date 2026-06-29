@@ -24,9 +24,13 @@
     "onCommand:kotlinWorksheet.run",
     "onCommand:kotlinWorksheet.clearResults",
     "onCommand:kotlinWorksheet.newWorksheet",
+    "onCommand:kotlinWorksheet.toggleRunOnSave",
     "workspaceContains:**/*.worksheet.kts"
   ],
   "main": "./out/extension.js",
+  "extensionPack": [
+    "fwcd.kotlin"
+  ],
   "contributes": {
     "commands": [
       {
@@ -40,6 +44,10 @@
       {
         "command": "kotlinWorksheet.newWorksheet",
         "title": "Kotlin Worksheet: New Worksheet"
+      },
+      {
+        "command": "kotlinWorksheet.toggleRunOnSave",
+        "title": "Kotlin Worksheet: Toggle Run On Save"
       }
     ],
     "configuration": {
@@ -52,8 +60,8 @@
         },
         "kotlinWorksheet.runOnSave": {
           "type": "boolean",
-          "default": true,
-          "description": "Run worksheet files automatically when saved."
+          "default": false,
+          "description": "Run worksheet files automatically when saved. Keep this off if VS Code Auto Save is enabled and worksheets are expensive."
         },
         "kotlinWorksheet.timeoutMs": {
           "type": "number",
@@ -98,6 +106,11 @@
         },
         {
           "command": "kotlinWorksheet.clearResults",
+          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.toggleRunOnSave",
           "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
           "group": "1_modification"
         }

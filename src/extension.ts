@@ -13,12 +13,23 @@ const suppressSaveRun = new Set<string>();
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Kotlin Worksheet");
   const diagnostics = vscode.languages.createDiagnosticCollection("kotlinWorksheet");
+  const runOnSaveStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  runOnSaveStatus.command = "kotlinWorksheet.toggleRunOnSave";
 
-  context.subscriptions.push(output, diagnostics);
+  const updateStatus = () => updateRunOnSaveStatus(runOnSaveStatus);
+
+  context.subscriptions.push(output, diagnostics, runOnSaveStatus);
   context.subscriptions.push(
     vscode.commands.registerCommand("kotlinWorksheet.run", () => runActiveWorksheet(output, diagnostics, false)),
     vscode.commands.registerCommand("kotlinWorksheet.clearResults", clearActiveWorksheet),
     vscode.commands.registerCommand("kotlinWorksheet.newWorksheet", newWorksheet),
+    vscode.commands.registerCommand("kotlinWorksheet.toggleRunOnSave", toggleRunOnSave),
+    vscode.window.onDidChangeActiveTextEditor(updateStatus),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("kotlinWorksheet.runOnSave")) {
+        updateStatus();
+      }
+    }),
     vscode.workspace.onDidSaveTextDocument((document) => {
       const uri = document.uri.toString();
       if (suppressSaveRun.has(uri)) {
@@ -37,6 +48,8 @@ export function activate(context: vscode.ExtensionContext): void {
       void runWorksheetDocument(document, output, diagnostics, true);
     }),
   );
+
+  updateStatus();
 }
 
 export function deactivate(): void {
@@ -197,6 +210,19 @@ async function clearActiveWorksheet(): Promise<void> {
   }
 }
 
+async function toggleRunOnSave(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to toggle Kotlin worksheet auto-run.`);
+    return;
+  }
+
+  const config = vscode.workspace.getConfiguration("kotlinWorksheet", editor.document.uri);
+  const current = config.get<boolean>("runOnSave", false);
+  await config.update("runOnSave", !current, vscode.ConfigurationTarget.Workspace);
+  void vscode.window.setStatusBarMessage(`Kotlin worksheet auto-run ${!current ? "enabled" : "disabled"}`, 2500);
+}
+
 async function newWorksheet(): Promise<void> {
   const content = [
     "val language = \"Kotlin\"",
@@ -221,6 +247,23 @@ async function newWorksheet(): Promise<void> {
   await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf8"));
   const document = await vscode.workspace.openTextDocument(uri);
   await vscode.window.showTextDocument(document);
+}
+
+function updateRunOnSaveStatus(status: vscode.StatusBarItem): void {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    status.hide();
+    return;
+  }
+
+  const enabled = vscode.workspace
+    .getConfiguration("kotlinWorksheet", editor.document.uri)
+    .get<boolean>("runOnSave", false);
+  status.text = enabled ? "$(check) Kotlin WS Auto" : "$(circle-slash) Kotlin WS Manual";
+  status.tooltip = enabled
+    ? "Kotlin Worksheet: auto-run on save is enabled. Click to disable."
+    : "Kotlin Worksheet: manual run mode is enabled. Click to auto-run on save.";
+  status.show();
 }
 
 async function nextWorksheetUri(folderUri: vscode.Uri): Promise<vscode.Uri> {
