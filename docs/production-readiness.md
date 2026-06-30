@@ -27,6 +27,7 @@ For the remaining concrete task list, see `docs/action-items.md`.
 - Add the final repository URL to `package.json` so marketplace README links can be fully clickable.
 - Add a marketplace icon and banner.
 - Test the packaged VSIX in clean VS Code profiles on macOS, Linux, and Windows.
+- Keep CI and docs pinned to `kotlinc-jvm 2.4.0` unless the supported version changes intentionally.
 - Decide whether to publish to Open VSX in addition to Visual Studio Marketplace.
 
 ## Future Production Enhancements

@@ -28,6 +28,8 @@ pnpm test
 
 The test suite covers worksheet text handling, output parsing, diagnostic mapping, and the local `kotlinc` executor when `kotlinc` is available.
 
+The current CI and sample workflow are pinned to `kotlinc-jvm 2.4.0`.
+
 ## Package
 
 ```sh

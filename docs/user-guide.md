@@ -9,6 +9,8 @@ Kotlin Worksheet evaluates `.worksheet.kts` files inside VS Code and writes resu
 - Kotlin language support extension for syntax highlighting. This extension packs `fwcd.kotlin`, but install or enable a Kotlin syntax extension if `.kts` files still appear in one color.
 - A trusted VS Code workspace for execution
 
+Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
+
 ## Install The Extension
 
 ### From VSIX

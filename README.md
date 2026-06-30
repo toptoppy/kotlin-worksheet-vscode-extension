@@ -16,6 +16,8 @@ println("hello") // => hello
 - A local Kotlin compiler on PATH, or configure `kotlinWorksheet.kotlinCommand`
 - Kotlin syntax highlighting from a Kotlin language extension. This extension packs `fwcd.kotlin`.
 
+Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
+
 The MVP runs worksheets with `kotlinc -script`, so it does not use a Gradle project classpath yet.
 
 ## Install For Users
