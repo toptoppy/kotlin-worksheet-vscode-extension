@@ -18,7 +18,7 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.0.1.vsix
+   kotlin-worksheet-0.2.0.vsix
    ```
 
 2. Open VS Code.
@@ -29,7 +29,7 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
    Extensions: Install from VSIX...
    ```
 
-5. Select `kotlin-worksheet-0.0.1.vsix`.
+5. Select `kotlin-worksheet-0.2.0.vsix`.
 6. Reload VS Code if prompted.
 
 ### From Source
@@ -41,7 +41,7 @@ pnpm install
 pnpm package
 ```
 
-Then install the generated `kotlin-worksheet-0.0.1.vsix` using `Extensions: Install from VSIX...`.
+Then install the generated `kotlin-worksheet-0.2.0.vsix` using `Extensions: Install from VSIX...`.
 
 ## Install Kotlin
 
@@ -198,9 +198,26 @@ println("worksheets run top to bottom") // => worksheets run top to bottom
 }
 ```
 
+## Execution Mode
+
+Choose how worksheets are executed:
+
+- `auto`: use Gradle classpath when a standard Gradle project is detected, otherwise fall back to local `kotlinc`
+- `localKotlinc`: always use local `kotlinc -script`
+- `gradleClasspath`: require a Gradle project and resolve its runtime classpath before running the worksheet
+
+Set it with:
+
+```json
+{
+  "kotlinWorksheet.executionMode": "auto"
+}
+```
+
+Gradle support works best with standard JVM projects that expose `sourceSets.main.runtimeClasspath`.
+
 ## Current Limitations
 
-- Gradle project classpath integration is not implemented yet.
 - Multi-line statements run, but displayed results are attached to the first line of a simple declaration.
 - Complex declarations such as destructuring are not displayed as declaration results.
 - The extension executes local Kotlin code, so only use worksheets from trusted workspaces.

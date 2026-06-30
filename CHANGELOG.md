@@ -6,6 +6,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-30
+
 ### Added
 
 - CI workflow that compiles, tests, packages, and uploads the VSIX artifact.
@@ -14,10 +16,12 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Configurable inline result truncation.
 - Decoration-based worksheet result rendering.
 - `Kotlin Worksheet: Rerun` and render-mode toggle commands.
+- Gradle-aware execution mode with local fallback.
 - Multi-line expression worksheet evaluation.
 - Worksheet cancellation from VS Code progress notifications.
 - Timeout and cancellation regression tests.
 - Production-readiness checklist.
+- Gradle-aware execution mode with local fallback.
 
 ### Fixed
 

@@ -31,6 +31,7 @@ The test suite covers worksheet text handling, output parsing, diagnostic mappin
 The current CI and sample workflow are pinned to `kotlinc-jvm 2.4.0`.
 
 The extension now supports inline comments and decoration-based rendering for worksheet results.
+Gradle classpath execution is available in `auto`, `localKotlinc`, and `gradleClasspath` modes.
 
 ## Package
 
@@ -41,12 +42,12 @@ pnpm package
 This produces:
 
 ```text
-kotlin-worksheet-0.0.1.vsix
+kotlin-worksheet-0.2.0.vsix
 ```
 
 CI uploads the generated VSIX as the `kotlin-worksheet-vsix` workflow artifact.
 
-To install the generated package in VS Code, run `Extensions: Install from VSIX...` and select `kotlin-worksheet-0.0.1.vsix`.
+To install the generated package in VS Code, run `Extensions: Install from VSIX...` and select `kotlin-worksheet-0.2.0.vsix`.
 
 ## Full Check
 
@@ -65,6 +66,8 @@ This lints, compiles TypeScript, runs tests, and packages the extension.
 5. Confirm inline `// => ...` comments appear.
 6. Save the worksheet and confirm auto-run works when `kotlinWorksheet.runOnSave` is enabled.
 
-## Adding Gradle Support Later
+## Gradle Mode
 
-Keep Gradle support behind a new execution backend. The current CLI backend should remain useful for standalone worksheets and fast smoke tests.
+The Gradle backend resolves the root project classpath automatically when `kotlinWorksheet.executionMode` is `auto` or `gradleClasspath`.
+
+Keep local `kotlinc` mode available for standalone worksheets and fast smoke tests.

@@ -1,12 +1,18 @@
 import * as vscode from "vscode";
 import { executeWorksheet } from "./executor.js";
 import {
+  detectExecutionMode,
+  locateGradleProjectRoot,
+  resolveGradleClasspath,
+} from "./gradle.js";
+import {
   WORKSHEET_SUFFIX,
   applyWorksheetResults,
   formatWorksheetResult,
   isWorksheetPath,
   stripResultComments,
 } from "./worksheet.js";
+import path from "node:path";
 
 const running = new Set<string>();
 const suppressSaveRun = new Set<string>();
@@ -112,6 +118,7 @@ async function runWorksheetDocument(
     const kotlinCommand = config.get<string>("kotlinCommand", "kotlinc");
     const timeoutMs = config.get<number>("timeoutMs", 10000);
     const maxResultLength = config.get<number>("maxResultLength", 500);
+    const executionMode = config.get<"auto" | "localKotlinc" | "gradleClasspath">("executionMode", "auto");
     const source = stripResultComments(document.getText());
 
     output.clear();
@@ -124,15 +131,50 @@ async function runWorksheetDocument(
         title: "Running Kotlin worksheet",
         cancellable: true,
       },
-      (_progress, token) => {
+      async (_progress, token) => {
         const abortController = new AbortController();
         const subscription = token.onCancellationRequested(() => abortController.abort());
 
-        return executeWorksheet(source, {
-          kotlinCommand,
-          timeoutMs,
-          cancellationSignal: abortController.signal,
-        }).finally(() => subscription.dispose());
+        try {
+          const documentDir = path.dirname(document.fileName);
+          const resolvedMode = await detectExecutionMode(documentDir, executionMode);
+          let classpath: string[] = [];
+
+          if (resolvedMode === "gradleClasspath") {
+            const gradleRoot = await locateGradleProjectRoot(documentDir);
+            if (gradleRoot) {
+              const gradleResolution = await resolveGradleClasspath(gradleRoot, {
+                timeoutMs,
+                cancellationSignal: abortController.signal,
+              });
+
+              if (gradleResolution.success && gradleResolution.classpath.length > 0) {
+                classpath = gradleResolution.classpath;
+                output.appendLine(`Gradle classpath resolved from ${gradleRoot}`);
+              } else if (executionMode === "gradleClasspath") {
+                throw new Error(
+                  gradleResolution.startError
+                    ?? gradleResolution.stderr
+                    ?? "Unable to resolve Gradle classpath.",
+                );
+              }
+              if (executionMode === "gradleClasspath" && classpath.length === 0) {
+                throw new Error("Gradle project was found, but no classpath entries were resolved.");
+              }
+            } else if (executionMode === "gradleClasspath") {
+              throw new Error("No Gradle project was found for this worksheet.");
+            }
+          }
+
+          return executeWorksheet(source, {
+            kotlinCommand,
+            timeoutMs,
+            cancellationSignal: abortController.signal,
+            classpath,
+          });
+        } finally {
+          subscription.dispose();
+        }
       },
     );
 

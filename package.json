@@ -2,7 +2,7 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -81,6 +81,16 @@
           ],
           "default": "inlineComments",
           "description": "How worksheet results are shown after execution."
+        },
+        "kotlinWorksheet.executionMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "localKotlinc",
+            "gradleClasspath"
+          ],
+          "default": "auto",
+          "description": "How the worksheet execution classpath is resolved."
         },
         "kotlinWorksheet.timeoutMs": {
           "type": "number",

@@ -17,17 +17,16 @@ println("hello") // => hello
 - Kotlin syntax highlighting from a Kotlin language extension. This extension packs `fwcd.kotlin`.
 
 Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
-
-The MVP runs worksheets with `kotlinc -script`, so it does not use a Gradle project classpath yet.
+Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle classpath resolution, or automatic detection.
 
 ## Install For Users
 
 Install from a local VSIX:
 
-1. Download or build `kotlin-worksheet-0.0.1.vsix`.
+1. Download or build `kotlin-worksheet-0.2.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.0.1.vsix`.
+4. Select `kotlin-worksheet-0.2.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts`.
 7. Run `Kotlin Worksheet: Run`.
@@ -48,6 +47,7 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `kotlinWorksheet.kotlinCommand`: command used to run Kotlin scripts, default `kotlinc`
 - `kotlinWorksheet.runOnSave`: run `.worksheet.kts` files on save, default `false`
 - `kotlinWorksheet.renderMode`: show results as `inlineComments` or `decorations`, default `inlineComments`
+- `kotlinWorksheet.executionMode`: choose `auto`, `localKotlinc`, or `gradleClasspath`, default `auto`
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
 
 ## Development
