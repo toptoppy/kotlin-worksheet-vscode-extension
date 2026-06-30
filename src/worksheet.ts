@@ -53,9 +53,18 @@ export function applyWorksheetResults(
         return line;
       }
 
-      return `${line.trimEnd()} // ${RESULT_PREFIX} ${formatResult(result, options.maxResultLength)}`;
+      return `${line.trimEnd()} // ${RESULT_PREFIX} ${formatWorksheetResult(result, options.maxResultLength)}`;
     })
     .join("\n");
+}
+
+export function formatWorksheetResult(result: string, maxResultLength = 500): string {
+  const compact = result.replace(/\r\n/g, "\n").replace(/\n/g, "\\n").trim();
+  if (compact.length <= maxResultLength) {
+    return compact;
+  }
+
+  return `${compact.slice(0, Math.max(0, maxResultLength - 3))}...`;
 }
 
 export function instrumentWorksheet(text: string, markerPrefix = createMarkerPrefix()): InstrumentedWorksheet {
@@ -279,15 +288,6 @@ function lineContinues(trimmed: string, blockDepth: number): boolean {
   }
 
   return /[({[,:=+\-*/%&|?.]$/.test(trimmed) || trimmed.endsWith("->");
-}
-
-function formatResult(result: string, maxResultLength: number): string {
-  const compact = result.replace(/\r\n/g, "\n").replace(/\n/g, "\\n").trim();
-  if (compact.length <= maxResultLength) {
-    return compact;
-  }
-
-  return `${compact.slice(0, Math.max(0, maxResultLength - 3))}...`;
 }
 
 function stripTrailingLineComment(line: string): string {

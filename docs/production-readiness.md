@@ -13,6 +13,7 @@ For the remaining concrete task list, see `docs/action-items.md`.
 - Inline result comments with configurable truncation.
 - Compiler diagnostics mapped back to worksheet source lines.
 - Multi-line expression evaluation for simple expression blocks.
+- Optional decoration-based worksheet result rendering.
 - Timeout and cancellation support with process-group cleanup on Unix.
 - Unit and executor tests.
 - ESLint-based TypeScript linting.

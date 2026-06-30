@@ -22,9 +22,11 @@
   "activationEvents": [
     "onLanguage:kotlin",
     "onCommand:kotlinWorksheet.run",
+    "onCommand:kotlinWorksheet.rerun",
     "onCommand:kotlinWorksheet.clearResults",
     "onCommand:kotlinWorksheet.newWorksheet",
     "onCommand:kotlinWorksheet.toggleRunOnSave",
+    "onCommand:kotlinWorksheet.toggleRenderMode",
     "workspaceContains:**/*.worksheet.kts"
   ],
   "main": "./out/extension.js",
@@ -38,6 +40,10 @@
         "title": "Kotlin Worksheet: Run"
       },
       {
+        "command": "kotlinWorksheet.rerun",
+        "title": "Kotlin Worksheet: Rerun"
+      },
+      {
         "command": "kotlinWorksheet.clearResults",
         "title": "Kotlin Worksheet: Clear Results"
       },
@@ -48,6 +54,10 @@
       {
         "command": "kotlinWorksheet.toggleRunOnSave",
         "title": "Kotlin Worksheet: Toggle Run On Save"
+      },
+      {
+        "command": "kotlinWorksheet.toggleRenderMode",
+        "title": "Kotlin Worksheet: Toggle Render Mode"
       }
     ],
     "configuration": {
@@ -62,6 +72,15 @@
           "type": "boolean",
           "default": false,
           "description": "Run worksheet files automatically when saved. Keep this off if VS Code Auto Save is enabled and worksheets are expensive."
+        },
+        "kotlinWorksheet.renderMode": {
+          "type": "string",
+          "enum": [
+            "inlineComments",
+            "decorations"
+          ],
+          "default": "inlineComments",
+          "description": "How worksheet results are shown after execution."
         },
         "kotlinWorksheet.timeoutMs": {
           "type": "number",
@@ -110,7 +129,17 @@
           "group": "1_modification"
         },
         {
+          "command": "kotlinWorksheet.rerun",
+          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "group": "1_modification"
+        },
+        {
           "command": "kotlinWorksheet.toggleRunOnSave",
+          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.toggleRenderMode",
           "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
           "group": "1_modification"
         }

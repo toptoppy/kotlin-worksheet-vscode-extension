@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyWorksheetResults,
+  formatWorksheetResult,
   instrumentWorksheet,
   parseKotlinDiagnostics,
   parseWorksheetOutput,
@@ -41,6 +42,10 @@ describe("worksheet text handling", () => {
     expect(applyWorksheetResults("val value = \"x\"", results, { maxResultLength: 10 })).toBe(
       "val value = \"x\" // => abcdefg...",
     );
+  });
+
+  it("formats multiline results for decorations", () => {
+    expect(formatWorksheetResult("hello\nworld", 20)).toBe("hello\\nworld");
   });
 
   it("replaces existing results when applying new ones", () => {

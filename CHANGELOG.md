@@ -12,6 +12,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - ESLint-based TypeScript linting gate.
 - CI and docs pinned to `kotlinc-jvm 2.4.0`.
 - Configurable inline result truncation.
+- Decoration-based worksheet result rendering.
+- `Kotlin Worksheet: Rerun` and render-mode toggle commands.
 - Multi-line expression worksheet evaluation.
 - Worksheet cancellation from VS Code progress notifications.
 - Timeout and cancellation regression tests.

@@ -30,6 +30,8 @@ The test suite covers worksheet text handling, output parsing, diagnostic mappin
 
 The current CI and sample workflow are pinned to `kotlinc-jvm 2.4.0`.
 
+The extension now supports inline comments and decoration-based rendering for worksheet results.
+
 ## Package
 
 ```sh

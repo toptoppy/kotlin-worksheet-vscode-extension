@@ -3,27 +3,37 @@ import { executeWorksheet } from "./executor.js";
 import {
   WORKSHEET_SUFFIX,
   applyWorksheetResults,
+  formatWorksheetResult,
   isWorksheetPath,
   stripResultComments,
 } from "./worksheet.js";
 
 const running = new Set<string>();
 const suppressSaveRun = new Set<string>();
+const decorationByDocument = new Map<string, vscode.TextEditorDecorationType>();
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Kotlin Worksheet");
   const diagnostics = vscode.languages.createDiagnosticCollection("kotlinWorksheet");
   const runOnSaveStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   runOnSaveStatus.command = "kotlinWorksheet.toggleRunOnSave";
+  const resultDecoration = vscode.window.createTextEditorDecorationType({
+    after: {
+      margin: "0 0 0 1ch",
+      color: new vscode.ThemeColor("editorCodeLens.foreground"),
+    },
+  });
 
   const updateStatus = () => updateRunOnSaveStatus(runOnSaveStatus);
 
-  context.subscriptions.push(output, diagnostics, runOnSaveStatus);
+  context.subscriptions.push(output, diagnostics, runOnSaveStatus, resultDecoration);
   context.subscriptions.push(
-    vscode.commands.registerCommand("kotlinWorksheet.run", () => runActiveWorksheet(output, diagnostics, false)),
-    vscode.commands.registerCommand("kotlinWorksheet.clearResults", clearActiveWorksheet),
+    vscode.commands.registerCommand("kotlinWorksheet.run", () => runActiveWorksheet(output, diagnostics, resultDecoration, false)),
+    vscode.commands.registerCommand("kotlinWorksheet.rerun", () => runActiveWorksheet(output, diagnostics, resultDecoration, false)),
+    vscode.commands.registerCommand("kotlinWorksheet.clearResults", () => clearActiveWorksheet(resultDecoration)),
     vscode.commands.registerCommand("kotlinWorksheet.newWorksheet", newWorksheet),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRunOnSave", toggleRunOnSave),
+    vscode.commands.registerCommand("kotlinWorksheet.toggleRenderMode", toggleRenderMode),
     vscode.window.onDidChangeActiveTextEditor(updateStatus),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("kotlinWorksheet.runOnSave")) {
@@ -45,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      void runWorksheetDocument(document, output, diagnostics, true);
+      void runWorksheetDocument(document, output, diagnostics, resultDecoration, true);
     }),
   );
 
@@ -60,6 +70,7 @@ export function deactivate(): void {
 async function runActiveWorksheet(
   output: vscode.OutputChannel,
   diagnostics: vscode.DiagnosticCollection,
+  resultDecoration: vscode.TextEditorDecorationType,
   saveAfterEdit: boolean,
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
@@ -68,13 +79,14 @@ async function runActiveWorksheet(
     return;
   }
 
-  await runWorksheetDocument(editor.document, output, diagnostics, saveAfterEdit);
+  await runWorksheetDocument(editor.document, output, diagnostics, resultDecoration, saveAfterEdit);
 }
 
 async function runWorksheetDocument(
   document: vscode.TextDocument,
   output: vscode.OutputChannel,
   diagnostics: vscode.DiagnosticCollection,
+  resultDecoration: vscode.TextEditorDecorationType,
   saveAfterEdit: boolean,
 ): Promise<void> {
   if (!isWorksheetPath(document.fileName)) {
@@ -166,9 +178,19 @@ async function runWorksheetDocument(
       return;
     }
 
-    const updatedText = applyWorksheetResults(source, execution.results, { maxResultLength });
-    if (updatedText !== document.getText()) {
-      await replaceDocumentText(document, updatedText);
+    const renderMode = config.get<"inlineComments" | "decorations">("renderMode", "inlineComments");
+    if (renderMode === "decorations") {
+      const cleanedText = source;
+      if (cleanedText !== document.getText()) {
+        await replaceDocumentText(document, cleanedText);
+      }
+      applyWorksheetDecorations(document, execution.results, resultDecoration, maxResultLength);
+    } else {
+      clearWorksheetDecorations(document, resultDecoration);
+      const updatedText = applyWorksheetResults(source, execution.results, { maxResultLength });
+      if (updatedText !== document.getText()) {
+        await replaceDocumentText(document, updatedText);
+      }
     }
 
     if (saveAfterEdit && document.isDirty) {
@@ -192,7 +214,7 @@ async function runWorksheetDocument(
   }
 }
 
-async function clearActiveWorksheet(): Promise<void> {
+async function clearActiveWorksheet(resultDecoration: vscode.TextEditorDecorationType): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     void vscode.window.showInformationMessage("Open a Kotlin worksheet file first.");
@@ -208,6 +230,7 @@ async function clearActiveWorksheet(): Promise<void> {
   if (cleaned !== editor.document.getText()) {
     await replaceDocumentText(editor.document, cleaned);
   }
+  clearWorksheetDecorations(editor.document, resultDecoration);
 }
 
 async function toggleRunOnSave(): Promise<void> {
@@ -221,6 +244,23 @@ async function toggleRunOnSave(): Promise<void> {
   const current = config.get<boolean>("runOnSave", false);
   await config.update("runOnSave", !current, vscode.ConfigurationTarget.Workspace);
   void vscode.window.setStatusBarMessage(`Kotlin worksheet auto-run ${!current ? "enabled" : "disabled"}`, 2500);
+}
+
+async function toggleRenderMode(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to toggle worksheet render mode.`);
+    return;
+  }
+
+  const config = vscode.workspace.getConfiguration("kotlinWorksheet", editor.document.uri);
+  const current = config.get<"inlineComments" | "decorations">("renderMode", "inlineComments");
+  const next = current === "inlineComments" ? "decorations" : "inlineComments";
+  await config.update("renderMode", next, vscode.ConfigurationTarget.Workspace);
+  if (next === "inlineComments") {
+    clearWorksheetDecorations(editor.document);
+  }
+  void vscode.window.setStatusBarMessage(`Kotlin worksheet render mode: ${next}`, 2500);
 }
 
 async function newWorksheet(): Promise<void> {
@@ -311,4 +351,51 @@ function setDiagnostics(
   });
 
   collection.set(document.uri, vscodeDiagnostics);
+}
+
+function applyWorksheetDecorations(
+  document: vscode.TextDocument,
+  results: Map<number, string>,
+  decoration: vscode.TextEditorDecorationType,
+  maxResultLength: number,
+): void {
+  const options = Array.from(results.entries())
+    .filter(([line, result]) => line > 0 && Boolean(result))
+    .map(([line, result]) => {
+      const textLine = document.lineAt(line - 1);
+      return {
+        range: new vscode.Range(line - 1, textLine.range.end.character, line - 1, textLine.range.end.character),
+        renderOptions: {
+          after: {
+            contentText: ` // => ${formatWorksheetResult(result, maxResultLength)}`,
+          },
+        },
+      };
+    });
+
+  for (const editor of vscode.window.visibleTextEditors) {
+    if (editor.document.uri.toString() === document.uri.toString()) {
+      editor.setDecorations(decoration, options);
+      decorationByDocument.set(document.uri.toString(), decoration);
+    }
+  }
+}
+
+function clearWorksheetDecorations(
+  document: vscode.TextDocument,
+  decoration?: vscode.TextEditorDecorationType,
+): void {
+  const docKey = document.uri.toString();
+  const activeDecoration = decoration ?? decorationByDocument.get(docKey);
+  if (!activeDecoration) {
+    return;
+  }
+
+  for (const editor of vscode.window.visibleTextEditors) {
+    if (editor.document.uri.toString() === docKey) {
+      editor.setDecorations(activeDecoration, []);
+    }
+  }
+
+  decorationByDocument.delete(docKey);
 }

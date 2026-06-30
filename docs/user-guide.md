@@ -128,6 +128,23 @@ To auto-run worksheets after save:
 
 If VS Code Auto Save is enabled, keep worksheet auto-run disabled unless you want the worksheet to execute after frequent saves.
 
+## Render Mode
+
+Worksheet results can be shown in two ways:
+
+- `inlineComments`: writes generated `// => ...` comments into the file
+- `decorations`: shows results as editor decorations without adding new result comments
+
+Switch modes with `Kotlin Worksheet: Toggle Render Mode`, or set:
+
+```json
+{
+  "kotlinWorksheet.renderMode": "decorations"
+}
+```
+
+If you switch from inline comments to decorations, run `Kotlin Worksheet: Clear Results` once to remove old generated comments from the file.
+
 ## Worksheet Files
 
 Create files ending with:
@@ -163,9 +180,11 @@ println("worksheets run top to bottom") // => worksheets run top to bottom
 ## Commands
 
 - `Kotlin Worksheet: Run`: evaluates the active worksheet.
+- `Kotlin Worksheet: Rerun`: same execution path as run, surfaced separately in the editor menu.
 - `Kotlin Worksheet: Clear Results`: removes generated `// => ...` comments.
 - `Kotlin Worksheet: New Worksheet`: creates a starter worksheet file.
 - `Kotlin Worksheet: Toggle Run On Save`: switches between manual mode and run-on-save mode.
+- `Kotlin Worksheet: Toggle Render Mode`: switches between inline comments and decorations.
 
 ## Settings
 
@@ -173,6 +192,7 @@ println("worksheets run top to bottom") // => worksheets run top to bottom
 {
   "kotlinWorksheet.kotlinCommand": "kotlinc",
   "kotlinWorksheet.runOnSave": false,
+  "kotlinWorksheet.renderMode": "inlineComments",
   "kotlinWorksheet.timeoutMs": 10000,
   "kotlinWorksheet.maxResultLength": 500
 }

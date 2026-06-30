@@ -37,14 +37,17 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 ## Commands
 
 - `Kotlin Worksheet: Run`
+- `Kotlin Worksheet: Rerun`
 - `Kotlin Worksheet: Clear Results`
 - `Kotlin Worksheet: New Worksheet`
 - `Kotlin Worksheet: Toggle Run On Save`
+- `Kotlin Worksheet: Toggle Render Mode`
 
 ## Settings
 
 - `kotlinWorksheet.kotlinCommand`: command used to run Kotlin scripts, default `kotlinc`
 - `kotlinWorksheet.runOnSave`: run `.worksheet.kts` files on save, default `false`
+- `kotlinWorksheet.renderMode`: show results as `inlineComments` or `decorations`, default `inlineComments`
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
 
 ## Development
