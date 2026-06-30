@@ -38,7 +38,7 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
       [
         "listOf(",
         "  1,",
-        "  2,",
+        "  2",
         ").sum()",
       ].join("\n"),
       { kotlinCommand: "kotlinc", timeoutMs: 10000 },
