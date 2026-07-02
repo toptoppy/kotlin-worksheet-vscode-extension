@@ -6,9 +6,12 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-02
+
 ### Added
 
 - Gradle fixture smoke test for worksheets that import compiled project classes.
+- Final repository, issue tracker, homepage, and Marketplace banner metadata.
 
 ## [0.2.0] - 2026-06-30
 

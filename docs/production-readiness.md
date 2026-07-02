@@ -19,14 +19,15 @@ For the remaining concrete task list, see `docs/action-items.md`.
 - Unit and executor tests.
 - ESLint-based TypeScript linting.
 - CI for install, compile, test, and package.
+- CI Gradle fixture smoke test for worksheets importing compiled project classes.
 - VSIX artifact upload in CI.
 - Release, contribution, architecture, user, and development docs.
+- Final repository metadata in `package.json`.
 - Actionable error when the configured Kotlin command cannot start.
 
 ## Required Before Marketplace Publishing
 
 - Replace the placeholder `publisher` value in `package.json` with the real Visual Studio Marketplace publisher ID.
-- Add the final repository URL to `package.json` so marketplace README links can be fully clickable.
 - Add a marketplace icon and banner.
 - Test the packaged VSIX in clean VS Code profiles on macOS, Linux, and Windows.
 - Keep CI and docs pinned to `kotlinc-jvm 2.4.0` unless the supported version changes intentionally.

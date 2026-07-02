@@ -18,7 +18,7 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.2.0.vsix
+   kotlin-worksheet-0.3.0.vsix
    ```
 
 2. Open VS Code.
@@ -29,7 +29,7 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
    Extensions: Install from VSIX...
    ```
 
-5. Select `kotlin-worksheet-0.2.0.vsix`.
+5. Select `kotlin-worksheet-0.3.0.vsix`.
 6. Reload VS Code if prompted.
 
 ### From Source
@@ -41,7 +41,7 @@ pnpm install
 pnpm package
 ```
 
-Then install the generated `kotlin-worksheet-0.2.0.vsix` using `Extensions: Install from VSIX...`.
+Then install the generated `kotlin-worksheet-0.3.0.vsix` using `Extensions: Install from VSIX...`.
 
 ## Install Kotlin
 
@@ -193,6 +193,7 @@ println("worksheets run top to bottom") // => worksheets run top to bottom
   "kotlinWorksheet.kotlinCommand": "kotlinc",
   "kotlinWorksheet.runOnSave": false,
   "kotlinWorksheet.renderMode": "inlineComments",
+  "kotlinWorksheet.executionMode": "auto",
   "kotlinWorksheet.timeoutMs": 10000,
   "kotlinWorksheet.maxResultLength": 500
 }

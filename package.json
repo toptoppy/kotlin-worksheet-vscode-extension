@@ -2,9 +2,21 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "local",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toptoppy/kotlin-worksheet-vscode-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/toptoppy/kotlin-worksheet-vscode-extension/issues"
+  },
+  "homepage": "https://github.com/toptoppy/kotlin-worksheet-vscode-extension#readme",
+  "galleryBanner": {
+    "color": "#1f2937",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.100.0"
   },

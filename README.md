@@ -23,10 +23,10 @@ Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle cl
 
 Install from a local VSIX:
 
-1. Download or build `kotlin-worksheet-0.2.0.vsix`.
+1. Download or build `kotlin-worksheet-0.3.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.2.0.vsix`.
+4. Select `kotlin-worksheet-0.3.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts`.
 7. Run `Kotlin Worksheet: Run`.

@@ -42,12 +42,12 @@ pnpm package
 This produces:
 
 ```text
-kotlin-worksheet-0.2.0.vsix
+kotlin-worksheet-0.3.0.vsix
 ```
 
 CI uploads the generated VSIX as the `kotlin-worksheet-vsix` workflow artifact.
 
-To install the generated package in VS Code, run `Extensions: Install from VSIX...` and select `kotlin-worksheet-0.2.0.vsix`.
+To install the generated package in VS Code, run `Extensions: Install from VSIX...` and select `kotlin-worksheet-0.3.0.vsix`.
 
 ## Full Check
 
