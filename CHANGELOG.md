@@ -12,6 +12,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 - Gradle fixture smoke test for worksheets that import compiled project classes.
 - Final repository, issue tracker, homepage, and Marketplace banner metadata.
+- Gradle classpath resolution now runs without a persistent Gradle daemon.
 
 ## [0.2.0] - 2026-06-30
 

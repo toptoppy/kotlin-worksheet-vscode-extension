@@ -65,6 +65,7 @@ export async function resolveGradleClasspath(
       command: command.command,
       args: [
         ...command.args,
+        "--no-daemon",
         "--init-script",
         initScript,
         "-q",
