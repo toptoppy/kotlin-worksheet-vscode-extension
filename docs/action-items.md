@@ -4,7 +4,6 @@ These items remain before publishing Kotlin Worksheet for general use.
 
 ## Marketplace Setup
 
-- Replace the placeholder `publisher` value in `package.json` with the real Visual Studio Marketplace publisher ID.
 - Add a marketplace icon.
 - Decide whether to publish to Open VSX in addition to Visual Studio Marketplace.
 
