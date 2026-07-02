@@ -1,11 +1,14 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
+import { executeWorksheet } from "../src/executor.js";
 import {
   detectExecutionMode,
   locateGradleProjectRoot,
   parseGradleClasspath,
+  resolveGradleClasspath,
 } from "../src/gradle.js";
 
 describe("gradle project detection", () => {
@@ -43,6 +46,36 @@ describe("gradle classpath parsing", () => {
   });
 });
 
+describe.skipIf(!hasGradle())("gradle classpath execution", () => {
+  it("runs a worksheet against compiled Gradle project classes", async () => {
+    const fixtureRoot = path.resolve("test/fixtures/gradle-java");
+    const classpath = await resolveGradleClasspath(fixtureRoot, { timeoutMs: 60000 });
+
+    expect(classpath.success, classpath.stderr).toBe(true);
+    expect(classpath.classpath.length).toBeGreaterThan(0);
+
+    const result = await executeWorksheet(
+      [
+        "import demo.Greeting",
+        "Greeting.message()",
+      ].join("\n"),
+      {
+        kotlincCommand: "kotlinc",
+        timeoutMs: 20000,
+        classpath: classpath.classpath,
+      },
+    );
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results).toEqual(new Map([[1, "hello from gradle"]]));
+  }, 90000);
+});
+
 async function createTempDir(prefix: string): Promise<string> {
   return mkdtemp(path.join(tmpdir(), prefix));
+}
+
+function hasGradle(): boolean {
+  const result = spawnSync("gradle", ["-v"], { stdio: "ignore" });
+  return result.status === 0;
 }
