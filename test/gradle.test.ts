@@ -60,14 +60,14 @@ describe.skipIf(!hasGradle())("gradle classpath execution", () => {
         "Greeting.message()",
       ].join("\n"),
       {
-        kotlincCommand: "kotlinc",
+        kotlinCommand: "kotlinc",
         timeoutMs: 20000,
         classpath: classpath.classpath,
       },
     );
 
     expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
-    expect(result.results).toEqual(new Map([[1, "hello from gradle"]]));
+    expect(result.results).toEqual(new Map([[2, "hello from gradle"]]));
   }, 90000);
 });
 
