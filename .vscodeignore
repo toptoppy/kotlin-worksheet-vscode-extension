@@ -3,6 +3,7 @@
 .code-review-graph/**
 .gitignore
 *.worksheet.kts
+*.zip
 eslint.config.mjs
 src/**
 test/**

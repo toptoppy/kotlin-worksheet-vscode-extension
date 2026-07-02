@@ -34,8 +34,8 @@ jobs:
 
       - name: Install Kotlin compiler
         run: |
-          curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v2.4.0/kotlin-compiler-2.4.0.zip -o kotlin-compiler.zip
-          unzip -q kotlin-compiler.zip -d /tmp/kotlin-compiler
+          curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v2.4.0/kotlin-compiler-2.4.0.zip -o /tmp/kotlin-compiler.zip
+          unzip -q /tmp/kotlin-compiler.zip -d /tmp/kotlin-compiler
           echo "/tmp/kotlin-compiler/kotlinc/bin" >> "$GITHUB_PATH"
 
       - name: Verify Kotlin compiler
@@ -43,8 +43,8 @@ jobs:
 
       - name: Install Gradle
         run: |
-          curl -fsSL https://services.gradle.org/distributions/gradle-8.10.2-bin.zip -o gradle.zip
-          unzip -q gradle.zip -d /tmp/gradle
+          curl -fsSL https://services.gradle.org/distributions/gradle-8.10.2-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp/gradle
           echo "/tmp/gradle/gradle-8.10.2/bin" >> "$GITHUB_PATH"
 
       - name: Verify Gradle
