@@ -3,7 +3,7 @@
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
   "version": "0.3.0",
-  "publisher": "530c07d8-92e8-629a-8525-0feffd3374a7",
+  "publisher": "ws-kts-toppy",
   "license": "MIT",
   "repository": {
     "type": "git",
