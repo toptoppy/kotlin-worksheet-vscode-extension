@@ -4,6 +4,7 @@ dist/
 .gradle/
 build/
 *.vsix
+wskts.png
 /*.worksheet.kts
 .vscode-test/
 coverage/

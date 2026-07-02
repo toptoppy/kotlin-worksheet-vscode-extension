@@ -4,6 +4,7 @@
 .gitignore
 *.worksheet.kts
 *.zip
+wskts.png
 eslint.config.mjs
 src/**
 test/**
