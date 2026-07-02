@@ -6,6 +6,10 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+### Added
+
+- Marketplace install link in README and user guide.
+
 ## [0.3.0] - 2026-07-02
 
 ### Added

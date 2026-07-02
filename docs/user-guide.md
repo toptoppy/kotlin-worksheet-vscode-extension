@@ -13,7 +13,15 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 
 ## Install The Extension
 
+### From Marketplace
+
+1. Open [Kotlin Worksheet on the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet).
+2. Click `Install`.
+3. Reload VS Code if prompted.
+
 ### From VSIX
+
+Use this path for unreleased builds or pilot testing.
 
 1. Get the packaged extension file:
 

@@ -2,6 +2,8 @@
 
 Evaluate Kotlin worksheet files in VS Code.
 
+[Install from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet)
+
 Files ending in `.worksheet.kts` can be run with `Kotlin Worksheet: Run`. By default, worksheet files also run when saved.
 
 ```kotlin
@@ -21,7 +23,15 @@ Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle cl
 
 ## Install For Users
 
-Install from a local VSIX:
+Install from the Visual Studio Marketplace:
+
+1. Open [Kotlin Worksheet on the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet).
+2. Click `Install`.
+3. Open a trusted workspace in VS Code.
+4. Create a file ending in `.worksheet.kts`.
+5. Run `Kotlin Worksheet: Run`.
+
+Install from a local VSIX if you are testing an unreleased build:
 
 1. Download or build `kotlin-worksheet-0.3.0.vsix`.
 2. Open VS Code.
