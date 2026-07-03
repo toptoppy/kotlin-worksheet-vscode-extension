@@ -11,6 +11,10 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Marketplace install link in README and user guide.
 - Marketplace extension icon.
 
+### Changed
+
+- Consolidated release action items into the production-readiness document.
+
 ## [0.3.0] - 2026-07-02
 
 ### Added

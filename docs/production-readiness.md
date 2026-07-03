@@ -1,8 +1,6 @@
 # Production Readiness
 
-This checklist tracks the work needed before publishing Kotlin Worksheet for general use.
-
-For the remaining concrete task list, see `docs/action-items.md`.
+This checklist tracks the work needed before publishing or promoting Kotlin Worksheet.
 
 ## Completed
 
@@ -24,14 +22,30 @@ For the remaining concrete task list, see `docs/action-items.md`.
 - Release, contribution, architecture, user, and development docs.
 - Final repository metadata in `package.json`.
 - Final Visual Studio Marketplace publisher ID in `package.json`.
+- Marketplace icon and banner metadata.
 - Actionable error when the configured Kotlin command cannot start.
 
-## Required Before Marketplace Publishing
+## Remaining Release QA
 
-- Add a marketplace icon and banner.
 - Test the packaged VSIX in clean VS Code profiles on macOS, Linux, and Windows.
+- Verify `Kotlin Worksheet: Run` on a sample `.worksheet.kts` file.
+- Verify run-on-save behavior.
+- Verify the status bar toggle switches between manual and auto-run-on-save modes.
+- Verify render mode toggles between inline comments and decorations.
+- Verify execution mode auto-detects Gradle projects and falls back to local `kotlinc`.
+- Verify `Kotlin Worksheet: Clear Results`.
+- Verify missing `kotlinc` error messaging.
+- Verify timeout and cancellation behavior from the VS Code progress notification.
 - Keep CI and docs pinned to `kotlinc-jvm 2.4.0` unless the supported version changes intentionally.
 - Decide whether to publish to Open VSX in addition to Visual Studio Marketplace.
+
+## Release Preparation
+
+- Update `CHANGELOG.md` for each release.
+- Run `pnpm check`.
+- Package the VSIX with `pnpm package`.
+- Install and smoke-test the packaged VSIX.
+- Tag the release after publishing.
 
 ## Future Production Enhancements
 
