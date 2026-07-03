@@ -5,6 +5,7 @@
 *.worksheet.kts
 *.zip
 wskts.png
+assets/kotlin-worksheet-icon.png
 eslint.config.mjs
 src/**
 test/**

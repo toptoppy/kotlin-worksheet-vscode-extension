@@ -5,6 +5,7 @@ dist/
 build/
 *.vsix
 wskts.png
+assets/kotlin-worksheet-icon.png
 /*.worksheet.kts
 .vscode-test/
 coverage/
