@@ -10,6 +10,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 - Marketplace install link in README and user guide.
 - Marketplace extension icon.
+- Publishing, version update, and maintenance guide.
 
 ### Changed
 

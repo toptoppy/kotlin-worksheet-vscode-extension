@@ -47,6 +47,8 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Install and smoke-test the packaged VSIX.
 - Tag the release after publishing.
 
+See `docs/publishing.md` for the detailed Marketplace publish and version update process.
+
 ## Future Production Enhancements
 
 - Add optional virtual decoration result rendering.

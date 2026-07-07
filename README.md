@@ -79,6 +79,7 @@ pnpm check
 - `docs/user-guide.md`
 - `docs/architecture.md`
 - `docs/development.md`
+- `docs/publishing.md`
 - `docs/production-readiness.md`
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`
