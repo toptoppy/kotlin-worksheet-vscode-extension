@@ -46,7 +46,7 @@ describe("gradle classpath parsing", () => {
   });
 });
 
-describe.skipIf(!hasGradle())("gradle classpath execution", () => {
+describe.skipIf(!hasGradle() || !hasKotlinc())("gradle classpath execution", () => {
   it("runs a worksheet against compiled Gradle project classes", async () => {
     const fixtureRoot = path.resolve("test/fixtures/gradle-java");
     const classpath = await resolveGradleClasspath(fixtureRoot, { timeoutMs: 60000 });
@@ -77,5 +77,10 @@ async function createTempDir(prefix: string): Promise<string> {
 
 function hasGradle(): boolean {
   const result = spawnSync("gradle", ["-v"], { stdio: "ignore" });
+  return result.status === 0;
+}
+
+function hasKotlinc(): boolean {
+  const result = spawnSync("kotlinc", ["-version"], { stdio: "ignore" });
   return result.status === 0;
 }
