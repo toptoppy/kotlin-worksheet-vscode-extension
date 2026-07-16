@@ -40,7 +40,6 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Worksheet cancellation from VS Code progress notifications.
 - Timeout and cancellation regression tests.
 - Production-readiness checklist.
-- Gradle-aware execution mode with local fallback.
 
 ### Fixed
 

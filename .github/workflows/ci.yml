@@ -2,29 +2,72 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
-  build:
-    name: Build and test
-    runs-on: ubuntu-latest
+  check:
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Compile
+        run: pnpm compile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Package
+        run: pnpm package
+
+      - name: Verify VSIX size
+        run: node -e "const fs = require('node:fs'); const files = fs.readdirSync('.').filter((file) => file.endsWith('.vsix')); if (files.length === 0) throw new Error('No VSIX found'); for (const file of files) { const bytes = fs.statSync(file).size; console.log(file + ' is ' + bytes + ' bytes'); if (bytes >= 1048576) throw new Error(file + ' exceeds 1 MiB'); }"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-worksheet-${{ runner.os }}
+          path: "*.vsix"
+          if-no-files-found: error
+
+  integration:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -38,44 +81,26 @@ jobs:
           unzip -q /tmp/kotlin-compiler.zip -d /tmp/kotlin-compiler
           echo "/tmp/kotlin-compiler/kotlinc/bin" >> "$GITHUB_PATH"
 
-      - name: Verify Kotlin compiler
-        run: kotlinc -version
-
-      - name: Install Gradle
-        run: |
-          curl -fsSL https://services.gradle.org/distributions/gradle-8.10.2-bin.zip -o /tmp/gradle.zip
-          unzip -q /tmp/gradle.zip -d /tmp/gradle
-          echo "/tmp/gradle/gradle-8.10.2/bin" >> "$GITHUB_PATH"
-
-      - name: Verify Gradle
-        run: gradle -v
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.10.2"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Compile
+      - name: Verify Kotlin and Gradle
+        run: |
+          kotlinc -version
+          gradle --version
+
+      - name: Compile extension
         run: pnpm compile
 
-      - name: Test
+      - name: Run toolchain tests
         run: pnpm test
 
-      - name: Stop Gradle
-        if: always()
-        run: gradle --stop
-
-      - name: Package extension
-        run: pnpm package
-
-      - name: Verify VSIX size
-        run: |
-          VSIX_FILE="$(ls *.vsix)"
-          VSIX_BYTES="$(wc -c < "$VSIX_FILE")"
-          echo "$VSIX_FILE is $VSIX_BYTES bytes"
-          test "$VSIX_BYTES" -lt 1048576
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+      - name: Run integration tests
+        uses: coactions/setup-xvfb@v1
         with:
-          name: kotlin-worksheet-vsix
-          path: "*.vsix"
-          if-no-files-found: error
+          run: pnpm test:integration

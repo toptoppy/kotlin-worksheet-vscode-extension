@@ -9,9 +9,11 @@ assets/kotlin-worksheet-icon.png
 eslint.config.mjs
 src/**
 test/**
+out/test/integration/**
 sample/**
 *.config.ts
 tsconfig.json
+tsconfig.integration.json
 pnpm-lock.yaml
 node_modules/**
 coverage/**

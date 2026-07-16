@@ -15,6 +15,7 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Gradle-aware execution mode with local fallback.
 - Timeout and cancellation support with process-group cleanup on Unix.
 - Unit and executor tests.
+- VS Code integration tests with the Extension Development Host.
 - ESLint-based TypeScript linting.
 - CI for install, compile, test, and package.
 - CI Gradle fixture smoke test for worksheets importing compiled project classes.
@@ -51,7 +52,5 @@ See `docs/publishing.md` for the detailed Marketplace publish and version update
 
 ## Future Production Enhancements
 
-- Add optional virtual decoration result rendering.
-- Add VS Code integration tests with the Extension Development Host.
 - Add marketplace screenshots or GIFs.
 - Add telemetry-free usage diagnostics in the output channel for troubleshooting.

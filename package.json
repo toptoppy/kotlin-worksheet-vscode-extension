@@ -176,15 +176,20 @@
     "check": "pnpm lint && pnpm compile && pnpm test && pnpm package",
     "test": "vitest run",
     "vscode:prepublish": "pnpm compile",
-    "package": "vsce package --no-dependencies --allow-missing-repository"
+    "package": "vsce package --no-dependencies --allow-missing-repository",
+    "test:integration:compile": "tsc -p tsconfig.integration.json",
+    "test:integration": "pnpm test:integration:compile && node out/test/integration/index.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^24.0.0",
     "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^3.6.0",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
+    "mocha": "^11.7.6",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.62.0",
     "vitest": "^3.2.4"

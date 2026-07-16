@@ -7,6 +7,7 @@ export default tseslint.config(
     ignores: [
       "out/**",
       "node_modules/**",
+      ".vscode-test/**",
       "coverage/**",
       ".code-review-graph/**",
       "*.vsix",

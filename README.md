@@ -4,7 +4,7 @@ Evaluate Kotlin worksheet files in VS Code.
 
 [Install from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet)
 
-Files ending in `.worksheet.kts` can be run with `Kotlin Worksheet: Run`. By default, worksheet files also run when saved.
+Files ending in `.worksheet.kts` can be run with `Kotlin Worksheet: Run`. Run-on-save is available as an optional setting.
 
 ```kotlin
 val x = 40 // => 40
