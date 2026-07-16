@@ -33,10 +33,10 @@ Install from the Visual Studio Marketplace:
 
 Install from a local VSIX if you are testing an unreleased build:
 
-1. Download or build `kotlin-worksheet-0.3.0.vsix`.
+1. Download or build `kotlin-worksheet-0.4.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.3.0.vsix`.
+4. Select `kotlin-worksheet-0.4.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts`.
 7. Run `Kotlin Worksheet: Run`.
@@ -46,11 +46,12 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 ## Commands
 
 - `Kotlin Worksheet: Run`
-- `Kotlin Worksheet: Rerun`
 - `Kotlin Worksheet: Clear Results`
 - `Kotlin Worksheet: New Worksheet`
 - `Kotlin Worksheet: Toggle Run On Save`
 - `Kotlin Worksheet: Toggle Render Mode`
+- `Kotlin Worksheet: Check Environment`
+- `Kotlin Worksheet: Show Log`
 
 ## Settings
 
@@ -59,6 +60,7 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `kotlinWorksheet.renderMode`: show results as `inlineComments` or `decorations`, default `inlineComments`
 - `kotlinWorksheet.executionMode`: choose `auto`, `localKotlinc`, or `gradleClasspath`, default `auto`
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
+- `kotlinWorksheet.maxResultLength`: maximum displayed result length, default `500`
 
 ## Development
 
@@ -81,5 +83,6 @@ pnpm check
 - `docs/development.md`
 - `docs/publishing.md`
 - `docs/production-readiness.md`
+- `docs/ux-confidence-release.md`
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`

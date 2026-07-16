@@ -25,18 +25,21 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Final Visual Studio Marketplace publisher ID in `package.json`.
 - Marketplace icon and banner metadata.
 - Actionable error when the configured Kotlin command cannot start.
+- Environment check for workspace trust, Kotlin version, execution mode, and Gradle availability.
+- Staged progress with quiet run-on-save feedback.
+- Persistent structured run logs and actionable recovery notifications.
+- Per-worksheet status with outcome, duration, execution mode, and cancellation.
+- Reliable decoration and diagnostic lifecycle across edits and editor visibility changes.
+- Native getting-started walkthrough.
+- Command-level extension-host tests for core success and failure paths.
+- Packaged 0.4.0 VSIX installation validated in an isolated macOS profile.
+- CI installs and verifies the packaged VSIX in isolated Linux, macOS, and Windows profiles.
 
 ## Remaining Release QA
 
-- Test the packaged VSIX in clean VS Code profiles on macOS, Linux, and Windows.
-- Verify `Kotlin Worksheet: Run` on a sample `.worksheet.kts` file.
-- Verify run-on-save behavior.
-- Verify the status bar toggle switches between manual and auto-run-on-save modes.
-- Verify render mode toggles between inline comments and decorations.
-- Verify execution mode auto-detects Gradle projects and falls back to local `kotlinc`.
-- Verify `Kotlin Worksheet: Clear Results`.
-- Verify missing `kotlinc` error messaging.
-- Verify timeout and cancellation behavior from the VS Code progress notification.
+- Confirm the cross-platform isolated VSIX installation job passes in CI.
+- Manually verify the walkthrough, status bar text, notification actions, and decoration appearance.
+- Manually verify automatic Gradle fallback in a representative Kotlin Gradle project.
 - Keep CI and docs pinned to `kotlinc-jvm 2.4.0` unless the supported version changes intentionally.
 - Decide whether to publish to Open VSX in addition to Visual Studio Marketplace.
 
@@ -45,7 +48,7 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Update `CHANGELOG.md` for each release.
 - Run `pnpm check`.
 - Package the VSIX with `pnpm package`.
-- Install and smoke-test the packaged VSIX.
+- Run `pnpm test:vsix-install` to install and verify the packaged VSIX in an isolated profile.
 - Tag the release after publishing.
 
 See `docs/publishing.md` for the detailed Marketplace publish and version update process.
@@ -53,4 +56,3 @@ See `docs/publishing.md` for the detailed Marketplace publish and version update
 ## Future Production Enhancements
 
 - Add marketplace screenshots or GIFs.
-- Add telemetry-free usage diagnostics in the output channel for troubleshooting.

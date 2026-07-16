@@ -21,6 +21,7 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
       [2, "42"],
       [3, "hello"],
     ]));
+    expect(result.stdout).toBe("40\n42\nhello\n");
   }, 20000);
 
   it("returns diagnostics for compiler errors", async () => {

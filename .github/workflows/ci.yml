@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -45,6 +45,9 @@ jobs:
 
       - name: Verify VSIX size
         run: node -e "const fs = require('node:fs'); const files = fs.readdirSync('.').filter((file) => file.endsWith('.vsix')); if (files.length === 0) throw new Error('No VSIX found'); for (const file of files) { const bytes = fs.statSync(file).size; console.log(file + ' is ' + bytes + ' bytes'); if (bytes >= 1048576) throw new Error(file + ' exceeds 1 MiB'); }"
+
+      - name: Verify isolated VSIX installation
+        run: pnpm test:vsix-install
 
       - uses: actions/upload-artifact@v4
         with:

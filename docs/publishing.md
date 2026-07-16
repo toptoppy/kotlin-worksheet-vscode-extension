@@ -62,22 +62,22 @@ Marketplace does not allow publishing the same version twice. Every Marketplace 
 
 2. Choose the next version.
 
-   Current example:
+   Example:
 
    ```text
-   0.3.0 -> 0.3.1
+   0.3.1 -> 0.4.0
    ```
 
 3. Update `package.json`:
 
    ```json
-   "version": "0.3.1"
+   "version": "0.4.0"
    ```
 
 4. Move `CHANGELOG.md` entries from `Unreleased` into the new version section:
 
    ```md
-   ## [0.3.1] - YYYY-MM-DD
+   ## [0.4.0] - YYYY-MM-DD
    ```
 
 5. Run the full release check:
@@ -106,20 +106,20 @@ Marketplace does not allow publishing the same version twice. Every Marketplace 
 
    ```sh
    git add package.json CHANGELOG.md
-   git commit -m "Release 0.3.1"
+   git commit -m "Release 0.4.0"
    ```
 
 8. Publish the exact VSIX that was checked:
 
    ```sh
-   pnpm exec vsce publish --packagePath kotlin-worksheet-0.3.1.vsix
+   pnpm exec vsce publish --packagePath kotlin-worksheet-0.4.0.vsix
    ```
 
 9. Tag the release after Marketplace publish succeeds:
 
    ```sh
-   git tag v0.3.1
-   git push origin main v0.3.1
+   git tag v0.4.0
+   git push origin main v0.4.0
    ```
 
 10. Verify the Marketplace page shows the new version:
@@ -145,7 +145,7 @@ Use this only when you are comfortable with `vsce` updating `package.json` and c
 Use pre-release publishing when you want early feedback without replacing the stable release channel:
 
 ```sh
-pnpm exec vsce publish --pre-release --packagePath kotlin-worksheet-0.3.1.vsix
+pnpm exec vsce publish --pre-release --packagePath kotlin-worksheet-0.4.0.vsix
 ```
 
 Use pre-release builds for pilot customers when Marketplace distribution is easier than sharing a VSIX directly.

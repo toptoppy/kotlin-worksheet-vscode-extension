@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { executeWorksheet } from "../src/executor.js";
 import {
+  describeGradleFailure,
   detectExecutionMode,
   locateGradleProjectRoot,
   parseGradleClasspath,
@@ -43,6 +44,36 @@ describe("gradle classpath parsing", () => {
     const output = [`/one`, ` /two `, "", `/three`].join(separator);
 
     expect(parseGradleClasspath(output)).toEqual(["/one", "/two", "/three"]);
+  });
+});
+
+describe("gradle failure descriptions", () => {
+  it("prioritizes timeout and startup failures", () => {
+    expect(describeGradleFailure({
+      classpath: [],
+      stderr: "ignored",
+      timedOut: true,
+      startError: "also ignored",
+    })).toBe("resolution timed out");
+    expect(describeGradleFailure({
+      classpath: [],
+      stderr: "ignored",
+      timedOut: false,
+      startError: "Gradle is unavailable",
+    })).toBe("Gradle is unavailable");
+  });
+
+  it("uses the first stderr line or explains an empty classpath", () => {
+    expect(describeGradleFailure({
+      classpath: [],
+      stderr: "Configuration failed\nMore details",
+      timedOut: false,
+    })).toBe("Configuration failed");
+    expect(describeGradleFailure({
+      classpath: [],
+      stderr: "",
+      timedOut: false,
+    })).toBe("no classpath entries were resolved");
   });
 });
 

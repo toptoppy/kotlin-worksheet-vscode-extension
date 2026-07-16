@@ -22,6 +22,29 @@ export interface GradleResolveOptions {
   cancellationSignal?: AbortSignal;
 }
 
+export interface GradleCommand {
+  command: string;
+  args: string[];
+}
+
+export function describeGradleFailure(result: Pick<GradleClasspathResult, "classpath" | "stderr" | "timedOut" | "startError">): string {
+  if (result.timedOut) {
+    return "resolution timed out";
+  }
+  if (result.startError) {
+    return result.startError;
+  }
+
+  const firstErrorLine = result.stderr.trim().split(/\r?\n/, 1)[0];
+  if (firstErrorLine) {
+    return firstErrorLine;
+  }
+  if (result.classpath.length === 0) {
+    return "no classpath entries were resolved";
+  }
+  return "unknown error";
+}
+
 export async function locateGradleProjectRoot(startDir: string): Promise<string | undefined> {
   let current = path.resolve(startDir);
   while (true) {
@@ -138,10 +161,10 @@ async function hasGradleMarkers(dir: string): Promise<boolean> {
   return false;
 }
 
-async function detectGradleCommand(projectRoot: string): Promise<{ command: string; args: string[] } | undefined> {
+export async function detectGradleCommand(projectRoot: string): Promise<GradleCommand | undefined> {
   const wrapper = path.join(projectRoot, process.platform === "win32" ? "gradlew.bat" : "gradlew");
   try {
-    await access(wrapper, fsConstants.F_OK);
+    await access(wrapper, process.platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
     return { command: wrapper, args: [] };
   } catch {
     return await commandExists("gradle") ? { command: "gradle", args: [] } : undefined;

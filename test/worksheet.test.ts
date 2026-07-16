@@ -6,6 +6,7 @@ import {
   parseKotlinDiagnostics,
   parseWorksheetOutput,
   stripResultComments,
+  stripWorksheetMarkers,
 } from "../src/worksheet.js";
 
 describe("worksheet text handling", () => {
@@ -143,6 +144,19 @@ describe("worksheet output parsing", () => {
       [2, "42"],
       [3, "hello\nworld"],
     ]));
+  });
+
+  it("removes instrumentation markers from user-visible output", () => {
+    const output = [
+      "__MARKER__:1",
+      "40",
+      "__MARKER__:2",
+      "hello",
+      "world",
+      "",
+    ].join("\r\n");
+
+    expect(stripWorksheetMarkers(output, "__MARKER__:")).toBe("40\nhello\nworld\n");
   });
 });
 

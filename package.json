@@ -2,7 +2,7 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "ws-kts-toppy",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -35,11 +35,12 @@
   "activationEvents": [
     "onLanguage:kotlin",
     "onCommand:kotlinWorksheet.run",
-    "onCommand:kotlinWorksheet.rerun",
     "onCommand:kotlinWorksheet.clearResults",
     "onCommand:kotlinWorksheet.newWorksheet",
     "onCommand:kotlinWorksheet.toggleRunOnSave",
     "onCommand:kotlinWorksheet.toggleRenderMode",
+    "onCommand:kotlinWorksheet.checkEnvironment",
+    "onCommand:kotlinWorksheet.showOutput",
     "workspaceContains:**/*.worksheet.kts"
   ],
   "main": "./out/extension.js",
@@ -50,19 +51,20 @@
     "commands": [
       {
         "command": "kotlinWorksheet.run",
-        "title": "Kotlin Worksheet: Run"
-      },
-      {
-        "command": "kotlinWorksheet.rerun",
-        "title": "Kotlin Worksheet: Rerun"
+        "title": "Kotlin Worksheet: Run",
+        "icon": "$(play)",
+        "enablement": "kotlinWorksheet.active"
       },
       {
         "command": "kotlinWorksheet.clearResults",
-        "title": "Kotlin Worksheet: Clear Results"
+        "title": "Kotlin Worksheet: Clear Results",
+        "icon": "$(clear-all)",
+        "enablement": "kotlinWorksheet.active"
       },
       {
         "command": "kotlinWorksheet.newWorksheet",
-        "title": "Kotlin Worksheet: New Worksheet"
+        "title": "Kotlin Worksheet: New Worksheet",
+        "icon": "$(new-file)"
       },
       {
         "command": "kotlinWorksheet.toggleRunOnSave",
@@ -71,6 +73,15 @@
       {
         "command": "kotlinWorksheet.toggleRenderMode",
         "title": "Kotlin Worksheet: Toggle Render Mode"
+      },
+      {
+        "command": "kotlinWorksheet.checkEnvironment",
+        "title": "Kotlin Worksheet: Check Environment"
+      },
+      {
+        "command": "kotlinWorksheet.showOutput",
+        "title": "Kotlin Worksheet: Show Log",
+        "icon": "$(output)"
       }
     ],
     "configuration": {
@@ -79,12 +90,14 @@
         "kotlinWorksheet.kotlinCommand": {
           "type": "string",
           "default": "kotlinc",
-          "description": "Command used to run Kotlin scripts."
+          "description": "Command used to run Kotlin scripts.",
+          "order": 1
         },
         "kotlinWorksheet.runOnSave": {
           "type": "boolean",
           "default": false,
-          "description": "Run worksheet files automatically when saved. Keep this off if VS Code Auto Save is enabled and worksheets are expensive."
+          "description": "Run worksheet files automatically when saved. Keep this off if VS Code Auto Save is enabled and worksheets are expensive.",
+          "order": 4
         },
         "kotlinWorksheet.renderMode": {
           "type": "string",
@@ -92,8 +105,13 @@
             "inlineComments",
             "decorations"
           ],
+          "enumDescriptions": [
+            "Write generated // => comments into the worksheet file.",
+            "Show results in the editor without changing the worksheet file."
+          ],
           "default": "inlineComments",
-          "description": "How worksheet results are shown after execution."
+          "description": "How worksheet results are shown after execution.",
+          "order": 3
         },
         "kotlinWorksheet.executionMode": {
           "type": "string",
@@ -102,20 +120,28 @@
             "localKotlinc",
             "gradleClasspath"
           ],
+          "enumDescriptions": [
+            "Use a detected Gradle project classpath, with local Kotlin as a fallback.",
+            "Run directly with the configured Kotlin command and no project classpath.",
+            "Require a Gradle project and resolve its runtime classpath before running."
+          ],
           "default": "auto",
-          "description": "How the worksheet execution classpath is resolved."
+          "description": "How the worksheet execution classpath is resolved.",
+          "order": 2
         },
         "kotlinWorksheet.timeoutMs": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
-          "description": "Maximum worksheet execution time in milliseconds."
+          "description": "Maximum worksheet execution time in milliseconds.",
+          "order": 5
         },
         "kotlinWorksheet.maxResultLength": {
           "type": "number",
           "default": 500,
           "minimum": 20,
-          "description": "Maximum number of characters written for a single inline worksheet result."
+          "description": "Maximum number of characters written for a single inline worksheet result.",
+          "order": 6
         }
       }
     },
@@ -136,38 +162,81 @@
       "editor/title": [
         {
           "command": "kotlinWorksheet.run",
-          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "when": "kotlinWorksheet.active",
           "group": "navigation"
         }
       ],
       "editor/context": [
         {
           "command": "kotlinWorksheet.run",
-          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "when": "kotlinWorksheet.active",
           "group": "1_modification"
         },
         {
           "command": "kotlinWorksheet.clearResults",
-          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
-          "group": "1_modification"
-        },
-        {
-          "command": "kotlinWorksheet.rerun",
-          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
-          "group": "1_modification"
-        },
-        {
-          "command": "kotlinWorksheet.toggleRunOnSave",
-          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
-          "group": "1_modification"
-        },
-        {
-          "command": "kotlinWorksheet.toggleRenderMode",
-          "when": "resourceFilename =~ /\\.worksheet\\.kts$/",
+          "when": "kotlinWorksheet.active",
           "group": "1_modification"
         }
       ]
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "kotlinWorksheet.gettingStarted",
+        "title": "Get Started with Kotlin Worksheet",
+        "description": "Check your tools, create a worksheet, and understand its results.",
+        "steps": [
+          {
+            "id": "checkEnvironment",
+            "title": "Check your Kotlin environment",
+            "description": "Run [Kotlin Worksheet: Check Environment](command:kotlinWorksheet.checkEnvironment) to verify workspace trust, Kotlin, and Gradle.",
+            "media": {
+              "markdown": "docs/walkthrough/check-environment.md"
+            },
+            "completionEvents": [
+              "onCommand:kotlinWorksheet.checkEnvironment"
+            ]
+          },
+          {
+            "id": "createWorksheet",
+            "title": "Create a worksheet",
+            "description": "Run [Kotlin Worksheet: New Worksheet](command:kotlinWorksheet.newWorksheet) to create a starter file.",
+            "media": {
+              "markdown": "docs/walkthrough/create-worksheet.md"
+            },
+            "completionEvents": [
+              "onCommand:kotlinWorksheet.newWorksheet"
+            ]
+          },
+          {
+            "id": "runWorksheet",
+            "title": "Run the worksheet",
+            "description": "Use the editor Run button or [run the active worksheet](command:kotlinWorksheet.run).",
+            "media": {
+              "markdown": "docs/walkthrough/run-worksheet.md"
+            },
+            "completionEvents": [
+              "onCommand:kotlinWorksheet.run"
+            ]
+          },
+          {
+            "id": "understandResults",
+            "title": "Understand worksheet results",
+            "description": "Results can be written as inline comments or shown as editor decorations.",
+            "media": {
+              "markdown": "docs/walkthrough/understand-results.md"
+            }
+          },
+          {
+            "id": "troubleshoot",
+            "title": "Recover from errors",
+            "description": "Use Problems for source errors and [open the Kotlin Worksheet log](command:kotlinWorksheet.showOutput) for execution details.",
+            "media": {
+              "markdown": "docs/walkthrough/troubleshoot.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
@@ -175,10 +244,11 @@
     "lint": "eslint .",
     "check": "pnpm lint && pnpm compile && pnpm test && pnpm package",
     "test": "vitest run",
+    "test:vsix-install": "node test/smoke/vsix-install.mjs",
     "vscode:prepublish": "pnpm compile",
     "package": "vsce package --no-dependencies --allow-missing-repository",
     "test:integration:compile": "tsc -p tsconfig.integration.json",
-    "test:integration": "pnpm test:integration:compile && node out/test/integration/index.js"
+    "test:integration": "pnpm compile && pnpm test:integration:compile && node out/test/integration/index.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

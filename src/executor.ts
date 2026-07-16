@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { runCapturedCommand } from "./process.js";
 import type { WorksheetDiagnostic } from "./worksheet.js";
-import { instrumentWorksheet, parseKotlinDiagnostics, parseWorksheetOutput } from "./worksheet.js";
+import {
+  instrumentWorksheet,
+  parseKotlinDiagnostics,
+  parseWorksheetOutput,
+  stripWorksheetMarkers,
+} from "./worksheet.js";
 
 export interface KotlinWorksheetExecution {
   success: boolean;
@@ -48,7 +53,7 @@ export async function executeWorksheet(
 
     return {
       success: processResult.exitCode === 0 && !processResult.timedOut && !processResult.cancelled,
-      stdout: processResult.stdout,
+      stdout: stripWorksheetMarkers(processResult.stdout, instrumented.markerPrefix),
       stderr: processResult.stderr,
       exitCode: processResult.exitCode,
       results,

@@ -176,6 +176,14 @@ export function parseWorksheetOutput(stdout: string, markerPrefix: string): Map<
   return results;
 }
 
+export function stripWorksheetMarkers(stdout: string, markerPrefix: string): string {
+  return stdout
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .filter((line) => !line.startsWith(markerPrefix))
+    .join("\n");
+}
+
 export function parseKotlinDiagnostics(stderr: string, generatedLineToSourceLine: number[]): WorksheetDiagnostic[] {
   const diagnostics: WorksheetDiagnostic[] = [];
   const diagnosticLine = /^(.+):(\d+):(\d+):\s+(error|warning):\s+(.+)$/;

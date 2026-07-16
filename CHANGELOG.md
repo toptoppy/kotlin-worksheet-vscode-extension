@@ -6,6 +6,39 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-16
+
+### Added
+
+- Kotlin and Gradle environment check with setup recovery actions.
+- Staged execution progress and per-worksheet run state with status-bar cancellation.
+- Persistent structured logs with run history, durations, exit codes, and resolved execution modes.
+- Native getting-started walkthrough for environment setup, worksheet creation, execution, results, and troubleshooting.
+- Command-level extension-host coverage for execution, timeout, cancellation, run-on-save, diagnostics, render modes, and multi-root creation.
+
+### Changed
+
+- Run-on-save now uses quiet status-bar progress instead of repeated notifications.
+- Error and trust notifications now provide direct actions for settings, logs, Problems, setup guidance, and workspace trust.
+- Gradle automatic fallback is visible and can switch future runs to local Kotlin.
+- The status bar now reports Ready, Running, Passed, Failed, Cancelled, and Timed Out with mode and duration details.
+- Worksheet settings now include ordered enum descriptions and clearer mode trade-offs.
+- Editor context menus now focus on Run and Clear Results.
+- New Worksheet asks for a destination in multi-root workspaces.
+
+### Fixed
+
+- Internal worksheet instrumentation markers no longer appear in user-visible stdout.
+- Decoration results are cached and restored when editors become visible.
+- Stale diagnostics and decoration state are cleared on edits, close, mode changes, and Clear Results.
+- Switching to decoration mode now removes generated inline comments automatically.
+- Run-on-save uses the declared disabled default consistently.
+- Integration tests now compile current extension code before launching VS Code.
+
+### Removed
+
+- Redundant `Kotlin Worksheet: Rerun` command.
+
 ## [0.3.1] - 2026-07-16
 
 ### Added
