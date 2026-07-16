@@ -6,15 +6,25 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-16
+
 ### Added
 
 - Marketplace install link in README and user guide.
 - Marketplace extension icon.
 - Publishing, version update, and maintenance guide.
+- VS Code Extension Development Host integration tests.
 
 ### Changed
 
 - Consolidated release action items into the production-readiness document.
+- CI now checks Linux, macOS, and Windows and runs Kotlin and Gradle integration coverage on Linux.
+- Run-on-save documentation now reflects its optional default.
+
+### Fixed
+
+- Integration test files are excluded from the published VSIX.
+- Gradle fixture tests require both Gradle and Kotlin before execution.
 
 ## [0.3.0] - 2026-07-02
 
