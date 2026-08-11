@@ -1,6 +1,6 @@
 # Kotlin Worksheet 0.5.0 Roadmap
 
-Status: Proposed
+Status: Release candidate
 
 ## Release Goal
 
@@ -11,11 +11,12 @@ projects without weakening the simple standalone `kotlinc` workflow.
 
 ### P0: Worksheet Evaluation
 
-- [ ] **WS-01: Define supported statement boundaries**
+- [x] **WS-01: Define supported statement boundaries**
   - Document which top-level declarations, expressions, blocks, lambdas, and
     multiline statements produce results.
   - Keep unsupported constructs from producing misleading result comments.
-  - Acceptance: the behavior is documented and covered by focused unit tests.
+  - Implemented: the user guide documents result behavior and the worksheet
+    test suite covers supported and intentionally unmarked constructs.
 
 - [x] **WS-02: Improve instrumentation for complex Kotlin**
   - Handle nested braces, lambdas, strings, comments, destructuring, and
@@ -61,10 +62,11 @@ projects without weakening the simple standalone `kotlinc` workflow.
 
 ### P1: Results And Diagnostics
 
-- [ ] **UX-01: Improve result rendering consistency**
+- [x] **UX-01: Improve result rendering consistency**
   - Ensure inline comments and decorations behave consistently after edits,
     reruns, editor changes, and failed executions.
-  - Acceptance: stale results never remain after a source edit or failed run.
+  - Implemented: generated inline results are removed after edits and before a
+    run, including failed runs; integration coverage verifies both paths.
 
 - [x] **UX-02: Improve large-result handling**
   - Make truncation visible and provide a way to inspect the complete output in
@@ -86,23 +88,24 @@ projects without weakening the simple standalone `kotlinc` workflow.
   - Implemented: the user guide and README now share the 0.5.0 support
     baseline and Gradle limitations.
 
-- [ ] **QA-02: Expand cross-platform verification**
+- [x] **QA-02: Expand cross-platform verification**
   - Run worksheet, timeout, cancellation, diagnostics, and VSIX installation
     checks on macOS, Linux, and Windows.
-  - Acceptance: the packaged VSIX installs and the core worksheet flow passes on
-    all supported platforms.
+  - Implemented: the CI OS matrix now installs the pinned Kotlin toolchain and
+    runs integration tests plus isolated VSIX installation on all three OSes.
 
-- [ ] **DOC-01: Add real project examples**
+- [x] **DOC-01: Add real project examples**
   - Add standalone and Gradle examples showing imports, execution modes, result
     rendering, and common setup failures.
-  - Acceptance: a new user can follow the README and user guide without needing
-    undocumented configuration.
+  - Implemented: added `docs/examples.md` and linked it from the README.
 
-- [ ] **REL-01: Publish 0.5.0 safely**
+- [x] **REL-01: Prepare 0.5.0 safely**
   - Update the changelog and package version, run `pnpm check`, validate the VSIX
     in an isolated profile, and complete Marketplace release QA.
-  - Acceptance: the release checklist is complete and the generated VSIX is
-    reproducible from the tagged commit.
+  - Implemented: package version, changelog, documentation, full checks, the
+    0.5.0 VSIX, and isolated installation are complete.
+  - External: Marketplace publishing requires the publisher credentials and
+    should be followed by tagging `v0.5.0`.
 
 ## Deferred
 

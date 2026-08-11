@@ -39,7 +39,7 @@ Use this path for unreleased builds or pilot testing.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.4.0.vsix
+   kotlin-worksheet-0.5.0.vsix
    ```
 
 2. Open VS Code.
@@ -50,7 +50,7 @@ Use this path for unreleased builds or pilot testing.
    Extensions: Install from VSIX...
    ```
 
-5. Select `kotlin-worksheet-0.4.0.vsix`.
+5. Select `kotlin-worksheet-0.5.0.vsix`.
 6. Reload VS Code if prompted.
 
 ### From Source
@@ -62,7 +62,7 @@ pnpm install
 pnpm package
 ```
 
-Then install the generated `kotlin-worksheet-0.4.0.vsix` using `Extensions: Install from VSIX...`.
+Then install the generated `kotlin-worksheet-0.5.0.vsix` using `Extensions: Install from VSIX...`.
 
 ## Install Kotlin
 
@@ -218,6 +218,22 @@ answer // => 42
 
 println("worksheets run top to bottom") // => worksheets run top to bottom
 ```
+
+## Evaluation Behavior
+
+Worksheet evaluation runs top to bottom and reports supported top-level values:
+
+| Code | Result behavior |
+| --- | --- |
+| `val` or `var` with a simple name | Reports the declared value on that line |
+| Flat destructuring such as `val (a, b) = pair` | Reports the components as a list |
+| Top-level expressions, including multiline expressions and lambdas | Reports the expression value on its first line |
+| `println(...)` or `print(...)` | Preserves printed output without adding a `Unit` result |
+| `import`, functions, classes, and interfaces | Executes normally without a result marker |
+
+Nested or multiline destructuring declarations may execute correctly but are
+not assigned a result marker. Compiler errors are mapped back to the original
+worksheet source lines.
 
 ## Commands
 

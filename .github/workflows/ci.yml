@@ -28,6 +28,19 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Kotlin compiler
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v2.4.0/kotlin-compiler-2.4.0.zip -o "$RUNNER_TEMP/kotlin-compiler.zip"
+          unzip -q "$RUNNER_TEMP/kotlin-compiler.zip" -d "$RUNNER_TEMP/kotlin-compiler"
+          echo "$RUNNER_TEMP/kotlin-compiler/kotlinc/bin" >> "$GITHUB_PATH"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -48,6 +61,16 @@ jobs:
 
       - name: Verify isolated VSIX installation
         run: pnpm test:vsix-install
+
+      - name: Run integration tests on Linux
+        if: runner.os == 'Linux'
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: pnpm test:integration
+
+      - name: Run integration tests on macOS or Windows
+        if: runner.os != 'Linux'
+        run: pnpm test:integration
 
       - uses: actions/upload-artifact@v4
         with:

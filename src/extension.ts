@@ -22,6 +22,8 @@ import path from "node:path";
 
 const worksheetRuns = new WorksheetRunRegistry();
 const suppressSaveRun = new Set<string>();
+const cleaningDocuments = new Set<string>();
+const preservingResults = new Set<string>();
 const decorationOptionsByDocument = new Map<string, vscode.DecorationOptions[]>();
 const shownGradleFallbacks = new Set<string>();
 let nextRunId = 1;
@@ -80,6 +82,19 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       diagnostics.delete(event.document.uri);
       clearWorksheetDecorations(event.document, resultDecoration);
+
+      const uri = event.document.uri.toString();
+      if (cleaningDocuments.has(uri) || preservingResults.has(uri)) {
+        return;
+      }
+
+      const cleaned = stripResultComments(event.document.getText());
+      if (cleaned === event.document.getText()) {
+        return;
+      }
+
+      cleaningDocuments.add(uri);
+      void replaceDocumentText(event.document, cleaned).finally(() => cleaningDocuments.delete(uri));
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
       diagnostics.delete(document.uri);
@@ -118,6 +133,8 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {
   worksheetRuns.dispose();
   suppressSaveRun.clear();
+  cleaningDocuments.clear();
+  preservingResults.clear();
   shownGradleFallbacks.clear();
 }
 
@@ -201,6 +218,9 @@ async function runWorksheetDocument(
       async (progress, token) => {
         progress.report({ message: "Preparing worksheet" });
         source = stripResultComments(document.getText());
+        if (source !== document.getText()) {
+          await replaceDocumentText(document, source);
+        }
         progress.report({ message: "Detecting execution mode" });
         worksheetRuns.transition(uri, "resolving");
         const subscription = token.onCancellationRequested(() => worksheetRuns.cancel(uri));
@@ -279,7 +299,12 @@ async function runWorksheetDocument(
               clearWorksheetDecorations(document, resultDecoration);
               const updatedText = applyWorksheetResults(source, execution.results, { maxResultLength });
               if (updatedText !== document.getText()) {
-                await replaceDocumentText(document, updatedText);
+                preservingResults.add(uri);
+                try {
+                  await replaceDocumentText(document, updatedText);
+                } finally {
+                  preservingResults.delete(uri);
+                }
               }
             }
 

@@ -1,6 +1,7 @@
 .vscode/**
 .github/**
 .code-review-graph/**
+graphify-out/**
 .gitignore
 *.worksheet.kts
 *.zip

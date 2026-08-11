@@ -90,6 +90,30 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     assert.strictEqual(vscode.languages.getDiagnostics(document.uri).length, 0);
   });
 
+  (hasKotlinc ? test : test.skip)("removes stale inline results after editing", async () => {
+    const document = await openDocument("val x = 1\nx + 1", "stale-edit.worksheet.kts");
+    await configureExecution(document.uri);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    assert.ok(document.getText().includes("// => 2"));
+
+    const editor = await vscode.window.showTextDocument(document);
+    await editor.edit((builder) => builder.replace(document.lineAt(0).range, "val x = 2"));
+    await waitFor(() => !document.getText().includes("// =>"));
+  }).timeout(30000);
+
+  (hasKotlinc ? test : test.skip)("removes stale inline results before a failed run", async () => {
+    const document = await openDocument("val x = 1\nx + 1", "stale-failure.worksheet.kts");
+    await configureExecution(document.uri);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    assert.ok(document.getText().includes("// => 2"));
+
+    await updateSetting("kotlinCommand", "definitely-not-a-real-kotlinc-command", document.uri);
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    assert.strictEqual(document.getText().includes("// =>"), false);
+  }).timeout(30000);
+
   test("render mode switching removes inline results", async () => {
     const document = await openDocument("val x = 1 // => 1", "toggle-render.worksheet.kts");
 

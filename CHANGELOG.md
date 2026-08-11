@@ -6,6 +6,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-11
+
 ### Added
 
 - Stateful worksheet scanning that ignores braces and comment markers inside

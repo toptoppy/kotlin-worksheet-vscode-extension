@@ -69,10 +69,10 @@ Install from the Visual Studio Marketplace:
 
 Install from a local VSIX if you are testing an unreleased build:
 
-1. Download or build `kotlin-worksheet-0.4.0.vsix`.
+1. Download or build `kotlin-worksheet-0.5.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.4.0.vsix`.
+4. Select `kotlin-worksheet-0.5.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts`.
 7. Run `Kotlin Worksheet: Run`.
@@ -119,6 +119,7 @@ pnpm check
 ## Docs
 
 - `docs/user-guide.md`
+- `docs/examples.md`
 - `docs/architecture.md`
 - `docs/development.md`
 - `docs/publishing.md`

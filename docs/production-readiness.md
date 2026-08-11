@@ -32,12 +32,12 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Reliable decoration and diagnostic lifecycle across edits and editor visibility changes.
 - Native getting-started walkthrough.
 - Command-level extension-host tests for core success and failure paths.
-- Packaged 0.4.0 VSIX installation validated in an isolated macOS profile.
+- Packaged 0.5.0 VSIX installation validated in an isolated macOS profile.
 - CI installs and verifies the packaged VSIX in isolated Linux, macOS, and Windows profiles.
 
 ## Remaining Release QA
 
-- Confirm the cross-platform isolated VSIX installation job passes in CI.
+- Confirm the cross-platform worksheet integration and isolated VSIX jobs pass in CI.
 - Manually verify the walkthrough, status bar text, notification actions, and decoration appearance.
 - Manually verify automatic Gradle fallback in a representative Kotlin Gradle project.
 - Keep CI and docs pinned to `kotlinc-jvm 2.4.0` unless the supported version changes intentionally.
