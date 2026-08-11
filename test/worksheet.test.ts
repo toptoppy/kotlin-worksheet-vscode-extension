@@ -3,6 +3,7 @@ import {
   applyWorksheetResults,
   formatWorksheetResult,
   instrumentWorksheet,
+  isWorksheetResultTruncated,
   parseKotlinDiagnostics,
   parseWorksheetOutput,
   stripResultComments,
@@ -43,6 +44,8 @@ describe("worksheet text handling", () => {
     expect(applyWorksheetResults("val value = \"x\"", results, { maxResultLength: 10 })).toBe(
       "val value = \"x\" // => abcdefg...",
     );
+    expect(isWorksheetResultTruncated("abcdefghijklmnopqrstuvwxyz", 10)).toBe(true);
+    expect(isWorksheetResultTruncated("abc", 10)).toBe(false);
   });
 
   it("formats multiline results for decorations", () => {
@@ -126,6 +129,56 @@ describe("worksheet instrumentation", () => {
       "println(\"hello\")",
     ].join("\n"));
   });
+
+  it("keeps multiline strings and block comments out of statement boundaries", () => {
+    const instrumented = instrumentWorksheet(
+      [
+        "/* { this is a comment } */",
+        "val text = \"\"\"",
+        "  { braces stay in the string }",
+        "\"\"\".trimIndent()",
+        "text",
+      ].join("\n"),
+      "__MARKER__:",
+    );
+
+    expect(instrumented.script).toBe([
+      "/* { this is a comment } */",
+      "val text = \"\"\"",
+      "  { braces stay in the string }",
+      "\"\"\".trimIndent()",
+      "println(\"__MARKER__:2\")",
+      "println(text)",
+      "println(\"__MARKER__:5\")",
+      "println(text)",
+    ].join("\n"));
+  });
+
+  it("prints destructured declarations and waits for multiline lambdas", () => {
+    const instrumented = instrumentWorksheet(
+      [
+        "val (first, second) = Pair(1, 2)",
+        "val doubled = listOf(first, second).map { value ->",
+        "  value * 2",
+        "}",
+        "doubled",
+      ].join("\n"),
+      "__MARKER__:",
+    );
+
+    expect(instrumented.script).toBe([
+      "val (first, second) = Pair(1, 2)",
+      "println(\"__MARKER__:1\")",
+      "println(listOf(first, second))",
+      "val doubled = listOf(first, second).map { value ->",
+      "  value * 2",
+      "}",
+      "println(\"__MARKER__:2\")",
+      "println(doubled)",
+      "println(\"__MARKER__:5\")",
+      "println(doubled)",
+    ].join("\n"));
+  });
 });
 
 describe("worksheet output parsing", () => {
@@ -173,6 +226,53 @@ describe("kotlin diagnostics parsing", () => {
         sourceColumn: 5,
         severity: "error",
         message: "unresolved reference 'missing'.",
+      },
+    ]);
+  });
+
+  it("maps diagnostics from multiline declarations to their source line", () => {
+    const instrumented = instrumentWorksheet(
+      [
+        "val values = listOf(",
+        "  1,",
+        "  missingValue,",
+        ")",
+      ].join("\n"),
+      "__MARKER__:",
+    );
+
+    expect(parseKotlinDiagnostics(
+      "/tmp/worksheet.kts:3:3: error: unresolved reference 'missingValue'.",
+      instrumented.generatedLineToSourceLine,
+    )).toEqual([
+      {
+        sourceLine: 3,
+        sourceColumn: 3,
+        severity: "error",
+        message: "unresolved reference 'missingValue'.",
+      },
+    ]);
+  });
+
+  it("parses Kotlin diagnostic prefixes and parenthesized locations", () => {
+    expect(parseKotlinDiagnostics(
+      [
+        "w: /tmp/worksheet.kts: (2, 4): variable is never used",
+        "i: /tmp/worksheet.kts:3:2: info: additional context",
+      ].join("\n"),
+      [1, 2, 3],
+    )).toEqual([
+      {
+        sourceLine: 2,
+        sourceColumn: 4,
+        severity: "warning",
+        message: "variable is never used",
+      },
+      {
+        sourceLine: 3,
+        sourceColumn: 2,
+        severity: "info",
+        message: "additional context",
       },
     ]);
   });

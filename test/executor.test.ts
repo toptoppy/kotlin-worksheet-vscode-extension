@@ -49,6 +49,26 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.results).toEqual(new Map([[1, "3"]]));
   }, 20000);
 
+  it("runs destructuring and multiline lambda worksheets", async () => {
+    const result = await executeWorksheet(
+      [
+        "val (first, second) = Pair(1, 2)",
+        "val doubled = listOf(first, second).map { value ->",
+        "  value * 2",
+        "}",
+        "doubled",
+      ].join("\n"),
+      { kotlinCommand: "kotlinc", timeoutMs: 10000 },
+    );
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results).toEqual(new Map([
+      [1, "[1, 2]"],
+      [2, "[2, 4]"],
+      [5, "[2, 4]"],
+    ]));
+  }, 20000);
+
   it("times out a long-running worksheet", async () => {
     const result = await executeWorksheet("while (true) {}", { kotlinCommand: "kotlinc", timeoutMs: 1000 });
 

@@ -12,6 +12,7 @@ import {
   applyWorksheetResults,
   formatWorksheetResult,
   isWorksheetPath,
+  isWorksheetResultTruncated,
   stripResultComments,
 } from "./worksheet.js";
 import { WorksheetRunRegistry } from "./run-state.js";
@@ -218,6 +219,7 @@ async function runWorksheetDocument(
               const gradleResolution = await resolveGradleClasspath(gradleRoot, {
                 timeoutMs,
                 cancellationSignal: run.cancellationSignal,
+                worksheetDir: documentDir,
               });
 
               if (run.cancellationSignal.aborted) {
@@ -297,6 +299,15 @@ async function runWorksheetDocument(
         }
       },
     );
+
+    const truncatedResults = Array.from(execution.results.entries())
+      .filter(([, result]) => isWorksheetResultTruncated(result, maxResultLength))
+      .map(([line]) => line);
+    if (truncatedResults.length > 0) {
+      output.warn(
+        `${logPrefix} ${truncatedResults.length} result(s) exceeded ${maxResultLength} characters and were truncated in the editor (source lines: ${truncatedResults.join(", ")}). Full output is available in this log.`,
+      );
+    }
 
     if (execution.stdout.trim()) {
       output.info(`${logPrefix} stdout:\n${execution.stdout.trimEnd()}`);
@@ -762,7 +773,7 @@ async function replaceDocumentText(document: vscode.TextDocument, text: string):
 function setDiagnostics(
   document: vscode.TextDocument,
   collection: vscode.DiagnosticCollection,
-  diagnostics: Array<{ sourceLine: number; sourceColumn: number; severity: "error" | "warning"; message: string }>,
+  diagnostics: Array<{ sourceLine: number; sourceColumn: number; severity: "error" | "warning" | "info"; message: string }>,
 ): void {
   const vscodeDiagnostics = diagnostics.map((diagnostic) => {
     const line = Math.max(0, Math.min(document.lineCount - 1, diagnostic.sourceLine - 1));
@@ -771,7 +782,11 @@ function setDiagnostics(
     const item = new vscode.Diagnostic(
       range,
       diagnostic.message,
-      diagnostic.severity === "error" ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning,
+      diagnostic.severity === "error"
+        ? vscode.DiagnosticSeverity.Error
+        : diagnostic.severity === "warning"
+          ? vscode.DiagnosticSeverity.Warning
+          : vscode.DiagnosticSeverity.Information,
     );
     item.source = "Kotlin Worksheet";
     return item;

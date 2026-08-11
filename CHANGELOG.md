@@ -6,6 +6,27 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+### Added
+
+- Stateful worksheet scanning that ignores braces and comment markers inside
+  multiline strings, regular strings, character literals, and nested block
+  comments.
+- Worksheet result capture for flat destructuring declarations and multiline
+  lambda expressions.
+- Gradle subproject classpath resolution based on the worksheet directory.
+- Worksheet and Gradle regression coverage for multiline strings, block
+  comments, and multi-project builds.
+- Explicit log warnings when editor results are truncated.
+
+### Changed
+
+- Gradle resolution now reports the selected project when a project-specific
+  source set is unavailable.
+- Kotlin diagnostics now accept standard and parenthesized location formats,
+  including error, warning, and information prefixes.
+- macOS integration tests accept VS Code bundles that use `Code` instead of
+  `Electron` as the executable name.
+
 ## [0.4.0] - 2026-07-16
 
 ### Added

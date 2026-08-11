@@ -10,7 +10,7 @@ export interface InstrumentedWorksheet {
 export interface WorksheetDiagnostic {
   sourceLine: number;
   sourceColumn: number;
-  severity: "error" | "warning";
+  severity: "error" | "warning" | "info";
   message: string;
 }
 
@@ -23,9 +23,11 @@ export function isWorksheetPath(fileName: string): boolean {
 }
 
 export function stripResultComments(text: string): string {
+  const state = createLexicalState();
   return splitLines(text)
     .map((line) => {
-      const commentIndex = findLineCommentIndex(line);
+      const scanned = scanKotlinLine(line, state, 0);
+      const commentIndex = scanned.lineCommentIndex;
       if (commentIndex < 0) {
         return line;
       }
@@ -59,7 +61,7 @@ export function applyWorksheetResults(
 }
 
 export function formatWorksheetResult(result: string, maxResultLength = 500): string {
-  const compact = result.replace(/\r\n/g, "\n").replace(/\n/g, "\\n").trim();
+  const compact = compactWorksheetResult(result);
   if (compact.length <= maxResultLength) {
     return compact;
   }
@@ -67,44 +69,48 @@ export function formatWorksheetResult(result: string, maxResultLength = 500): st
   return `${compact.slice(0, Math.max(0, maxResultLength - 3))}...`;
 }
 
+export function isWorksheetResultTruncated(result: string, maxResultLength = 500): boolean {
+  return compactWorksheetResult(result).length > maxResultLength;
+}
+
 export function instrumentWorksheet(text: string, markerPrefix = createMarkerPrefix()): InstrumentedWorksheet {
-  const lines = splitLines(stripResultComments(text));
+  const lines = scanWorksheetLines(stripResultComments(text));
   const generated: string[] = [];
   const generatedLineToSourceLine: number[] = [];
 
   let blockDepth = 0;
   let previousContinues = false;
-  let pendingDeclaration: { name: string; sourceLine: number } | undefined;
+  let pendingDeclaration: { expression: string; sourceLine: number } | undefined;
   let pendingExpression: { sourceLine: number } | undefined;
 
-  lines.forEach((line, index) => {
-    const sourceLine = index + 1;
-    const trimmed = line.trim();
+  lines.forEach((line) => {
+    const sourceLine = line.sourceLine;
+    const trimmed = line.trimmed;
     const statementStart =
       blockDepth === 0 &&
       !previousContinues &&
       isExecutableTopLevelLine(trimmed);
-    const declarationName = statementStart ? parseSimpleDeclarationName(trimmed) : undefined;
-    const printableExpression = statementStart && !declarationName && isPrintableExpressionLine(line, trimmed);
+    const declarationExpression = statementStart ? parseDeclarationResultExpression(trimmed) : undefined;
+    const printableExpression = statementStart && !declarationExpression && isPrintableExpressionLine(line.text, trimmed);
 
     if (pendingExpression) {
-      generated.push(stripTrailingLineComment(line));
+      generated.push(stripTrailingLineComment(line.text));
       generatedLineToSourceLine.push(sourceLine);
-    } else if (printableExpression && lineContinues(trimmed, 0)) {
+    } else if (printableExpression && lineContinues(trimmed, line.delimiterDepthAfter)) {
       pushMarker(generated, generatedLineToSourceLine, markerPrefix, sourceLine);
-      generated.push(`println(${stripTrailingLineComment(line).trimStart()}`);
+      generated.push(`println(${stripTrailingLineComment(line.text).trimStart()}`);
       generatedLineToSourceLine.push(sourceLine);
       pendingExpression = { sourceLine };
     } else if (printableExpression) {
       pushMarker(generated, generatedLineToSourceLine, markerPrefix, sourceLine);
-      pushPrintableExpression(generated, generatedLineToSourceLine, line, sourceLine);
+      pushPrintableExpression(generated, generatedLineToSourceLine, line.text, sourceLine);
     } else {
-      generated.push(line);
+      generated.push(line.text);
       generatedLineToSourceLine.push(sourceLine);
     }
 
-    const nextBlockDepth = Math.max(0, blockDepth + braceDeltaOutsideStrings(line));
-    const nextContinues = lineContinues(trimmed, nextBlockDepth);
+    const nextBlockDepth = line.delimiterDepthAfter;
+    const nextContinues = line.lexicallyContinued || lineContinues(trimmed, nextBlockDepth);
 
     if (pendingExpression && nextBlockDepth === 0 && !nextContinues) {
       generated.push(")");
@@ -112,19 +118,19 @@ export function instrumentWorksheet(text: string, markerPrefix = createMarkerPre
       pendingExpression = undefined;
     }
 
-    if (declarationName) {
-      if (nextBlockDepth === 0) {
-        pushDeclarationResult(generated, generatedLineToSourceLine, markerPrefix, sourceLine, declarationName);
+    if (declarationExpression) {
+      if (nextBlockDepth === 0 && !nextContinues) {
+        pushDeclarationResult(generated, generatedLineToSourceLine, markerPrefix, sourceLine, declarationExpression);
       } else {
-        pendingDeclaration = { name: declarationName, sourceLine };
+        pendingDeclaration = { expression: declarationExpression, sourceLine };
       }
-    } else if (pendingDeclaration && nextBlockDepth === 0) {
+    } else if (pendingDeclaration && nextBlockDepth === 0 && !nextContinues) {
       pushDeclarationResult(
         generated,
         generatedLineToSourceLine,
         markerPrefix,
         pendingDeclaration.sourceLine,
-        pendingDeclaration.name,
+        pendingDeclaration.expression,
       );
       pendingDeclaration = undefined;
     }
@@ -186,7 +192,7 @@ export function stripWorksheetMarkers(stdout: string, markerPrefix: string): str
 
 export function parseKotlinDiagnostics(stderr: string, generatedLineToSourceLine: number[]): WorksheetDiagnostic[] {
   const diagnostics: WorksheetDiagnostic[] = [];
-  const diagnosticLine = /^(.+):(\d+):(\d+):\s+(error|warning):\s+(.+)$/;
+  const diagnosticLine = /^(?:(e|w|i):\s*)?(.+?)(?::(\d+):(\d+)|:\s*\((\d+),\s*(\d+)\)):\s*(?:(error|warning|info):\s*)?(.+)$/;
 
   for (const line of stderr.replace(/\r\n/g, "\n").split("\n")) {
     const match = diagnosticLine.exec(line);
@@ -194,17 +200,23 @@ export function parseKotlinDiagnostics(stderr: string, generatedLineToSourceLine
       continue;
     }
 
-    const generatedLine = Number(match[2]);
+    const generatedLine = Number(match[3] ?? match[5]);
     const sourceLine = generatedLineToSourceLine[generatedLine - 1] ?? generatedLine;
+    const prefixSeverity = match[1] === "w" ? "warning" : match[1] === "i" ? "info" : "error";
+    const severity = (match[7] as WorksheetDiagnostic["severity"] | undefined) ?? prefixSeverity;
     diagnostics.push({
       sourceLine,
-      sourceColumn: Math.max(1, Number(match[3])),
-      severity: match[4] as "error" | "warning",
-      message: match[5],
+      sourceColumn: Math.max(1, Number(match[4] ?? match[6])),
+      severity,
+      message: match[8],
     });
   }
 
   return diagnostics;
+}
+
+function compactWorksheetResult(result: string): string {
+  return result.replace(/\r\n/g, "\n").replace(/\n/g, "\\n").trim();
 }
 
 function createMarkerPrefix(): string {
@@ -235,8 +247,162 @@ function isExecutableTopLevelLine(trimmed: string): boolean {
   return true;
 }
 
-function parseSimpleDeclarationName(trimmed: string): string | undefined {
-  return /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];
+function parseDeclarationResultExpression(trimmed: string): string | undefined {
+  const simpleName = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];
+  if (simpleName) {
+    return simpleName;
+  }
+
+  const destructuredNames = /^(?:val|var)\s+\(([^()]*)\)\s*(?::[^=]+)?=/.exec(trimmed)?.[1]
+    ?.split(",")
+    .map((name) => name.trim())
+    .filter((name) => name !== "_");
+  if (!destructuredNames?.length || destructuredNames.some((name) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))) {
+    return undefined;
+  }
+
+  return `listOf(${destructuredNames.join(", ")})`;
+}
+
+interface WorksheetLine {
+  text: string;
+  trimmed: string;
+  sourceLine: number;
+  delimiterDepthAfter: number;
+  lexicallyContinued: boolean;
+}
+
+interface LexicalState {
+  blockCommentDepth: number;
+  quote: "none" | "single" | "double" | "triple";
+  escaped: boolean;
+}
+
+interface ScannedLine {
+  lineCommentIndex: number;
+  delimiterDepth: number;
+  code: string;
+}
+
+function scanWorksheetLines(text: string): WorksheetLine[] {
+  const state = createLexicalState();
+  let delimiterDepth = 0;
+
+  return splitLines(text).map((line, index) => {
+    const scanned = scanKotlinLine(line, state, delimiterDepth);
+    delimiterDepth = Math.max(0, scanned.delimiterDepth);
+    return {
+      text: line,
+      trimmed: scanned.code.trim(),
+      sourceLine: index + 1,
+      delimiterDepthAfter: delimiterDepth,
+      lexicallyContinued: state.blockCommentDepth > 0 || state.quote !== "none",
+    };
+  });
+}
+
+function createLexicalState(): LexicalState {
+  return { blockCommentDepth: 0, quote: "none", escaped: false };
+}
+
+function scanKotlinLine(line: string, state: LexicalState, initialDepth: number): ScannedLine {
+  let delimiterDepth = initialDepth;
+  let lineCommentIndex = -1;
+  const code = line.split("");
+
+  const mask = (index: number) => {
+    code[index] = " ";
+  };
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    const nextNext = line[index + 2];
+
+    if (state.blockCommentDepth > 0) {
+      mask(index);
+      if (char === "/" && next === "*") {
+        mask(index + 1);
+        state.blockCommentDepth += 1;
+        index += 1;
+      } else if (char === "*" && next === "/") {
+        mask(index + 1);
+        state.blockCommentDepth -= 1;
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state.quote === "triple") {
+      if (char === '"' && next === '"' && nextNext === '"') {
+        state.quote = "none";
+        index += 2;
+      }
+      continue;
+    }
+
+    if (state.quote === "double") {
+      if (state.escaped) {
+        state.escaped = false;
+      } else if (char === "\\") {
+        state.escaped = true;
+      } else if (char === '"') {
+        state.quote = "none";
+      }
+      continue;
+    }
+
+    if (state.quote === "single") {
+      if (state.escaped) {
+        state.escaped = false;
+      } else if (char === "\\") {
+        state.escaped = true;
+      } else if (char === "'") {
+        state.quote = "none";
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      lineCommentIndex = index;
+      for (let commentIndex = index; commentIndex < line.length; commentIndex += 1) {
+        mask(commentIndex);
+      }
+      break;
+    }
+
+    if (char === "/" && next === "*") {
+      mask(index);
+      mask(index + 1);
+      state.blockCommentDepth = 1;
+      index += 1;
+      continue;
+    }
+
+    if (char === '"' && next === '"' && nextNext === '"') {
+      state.quote = "triple";
+      index += 2;
+      continue;
+    }
+
+    if (char === '"') {
+      state.quote = "double";
+      continue;
+    }
+
+    if (char === "'") {
+      state.quote = "single";
+      continue;
+    }
+
+    if (char === "(" || char === "[" || char === "{") {
+      delimiterDepth += 1;
+    } else if (char === ")" || char === "]" || char === "}") {
+      delimiterDepth -= 1;
+    }
+  }
+
+  return { lineCommentIndex, delimiterDepth, code: code.join("") };
 }
 
 function isPrintableExpressionLine(line: string, trimmed: string): boolean {
@@ -265,10 +431,10 @@ function pushDeclarationResult(
   generatedLineToSourceLine: number[],
   markerPrefix: string,
   sourceLine: number,
-  name: string,
+  expression: string,
 ): void {
   pushMarker(generated, generatedLineToSourceLine, markerPrefix, sourceLine);
-  generated.push(`println(${name})`);
+  generated.push(`println(${expression})`);
   generatedLineToSourceLine.push(sourceLine);
 }
 
@@ -304,86 +470,5 @@ function stripTrailingLineComment(line: string): string {
 }
 
 function findLineCommentIndex(line: string): number {
-  let inSingle = false;
-  let inDouble = false;
-  let escaped = false;
-
-  for (let index = 0; index < line.length - 1; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-
-    if (char === "\\" && (inSingle || inDouble)) {
-      escaped = true;
-      continue;
-    }
-
-    if (!inDouble && char === "'") {
-      inSingle = !inSingle;
-      continue;
-    }
-
-    if (!inSingle && char === '"') {
-      inDouble = !inDouble;
-      continue;
-    }
-
-    if (!inSingle && !inDouble && char === "/" && next === "/") {
-      return index;
-    }
-  }
-
-  return -1;
-}
-
-function braceDeltaOutsideStrings(line: string): number {
-  let delta = 0;
-  let inSingle = false;
-  let inDouble = false;
-  let escaped = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-
-    if (!inSingle && !inDouble && char === "/" && next === "/") {
-      break;
-    }
-
-    if (char === "\\" && (inSingle || inDouble)) {
-      escaped = true;
-      continue;
-    }
-
-    if (!inDouble && char === "'") {
-      inSingle = !inSingle;
-      continue;
-    }
-
-    if (!inSingle && char === '"') {
-      inDouble = !inDouble;
-      continue;
-    }
-
-    if (inSingle || inDouble) {
-      continue;
-    }
-
-    if (char === "{" || char === "(" || char === "[") {
-      delta += 1;
-    } else if (char === "}" || char === ")" || char === "]") {
-      delta -= 1;
-    }
-  }
-
-  return delta;
+  return scanKotlinLine(line, createLexicalState(), 0).lineCommentIndex;
 }

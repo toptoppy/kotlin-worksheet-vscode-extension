@@ -11,6 +11,19 @@ Kotlin Worksheet evaluates `.worksheet.kts` files inside VS Code and writes resu
 
 Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 
+## Support Matrix
+
+| Component | Supported baseline |
+| --- | --- |
+| VS Code | 1.100 or newer |
+| Kotlin compiler | `kotlinc-jvm 2.4.0` for the current release line |
+| Gradle | A wrapper or `gradle` executable in standard JVM projects |
+| Operating systems | macOS, Linux, and Windows |
+
+Gradle classpath execution currently targets projects that expose a JVM
+`sourceSets.main.runtimeClasspath`. Android, Kotlin Multiplatform, and custom
+Gradle source-set layouts are not part of the supported baseline yet.
+
 ## Install The Extension
 
 ### From Marketplace
@@ -250,5 +263,6 @@ Gradle support works best with standard JVM projects that expose `sourceSets.mai
 ## Current Limitations
 
 - Multi-line statements run, but displayed results are attached to the first line of a simple declaration.
-- Complex declarations such as destructuring are not displayed as declaration results.
+- Flat destructuring declarations are displayed as a list result; nested or
+  multiline destructuring declarations may not be displayed.
 - The extension executes local Kotlin code, so only use worksheets from trusted workspaces.

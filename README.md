@@ -20,6 +20,36 @@ println("hello") // => hello
 
 Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
 Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle classpath resolution, or automatic detection.
+The current support baseline is VS Code 1.100+, Kotlin 2.4.0, and macOS, Linux, or Windows. See the [support matrix](docs/user-guide.md#support-matrix) for Gradle limitations.
+
+## Set Up Kotlin
+
+Check whether the Kotlin compiler is available:
+
+```sh
+kotlinc -version
+```
+
+If the command is unavailable, install Kotlin with one of these options:
+
+```sh
+# macOS with Homebrew
+brew install kotlin
+
+# SDKMAN
+sdk install kotlin
+
+# mise
+mise use --global kotlin@2.4.0
+```
+
+Restart VS Code after installing Kotlin so the extension can detect the updated PATH. If `kotlinc` is installed elsewhere, set its path in VS Code settings:
+
+```json
+{
+  "kotlinWorksheet.kotlinCommand": "/absolute/path/to/kotlinc"
+}
+```
 
 ## Set kotlinc 
 - Run `kotlinc -version` and result must be like `info: kotlinc-jvm 2.x.10 (JRE 2x.xxx)`
@@ -68,6 +98,10 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
 - `kotlinWorksheet.maxResultLength`: maximum displayed result length, default `500`
 
+## Support
+
+If Kotlin Worksheet is useful to you, you can support its development on [Buy Me a Coffee](https://buymeacoffee.com/toptoppy).
+
 ## Development
 
 ```sh
@@ -89,6 +123,7 @@ pnpm check
 - `docs/development.md`
 - `docs/publishing.md`
 - `docs/production-readiness.md`
+- `docs/roadmap-0.5.0.md`
 - `docs/ux-confidence-release.md`
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`

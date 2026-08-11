@@ -1,5 +1,5 @@
-import { runTests } from "@vscode/test-electron";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { downloadAndUnzipVSCode, runTests } from "@vscode/test-electron";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -22,7 +22,9 @@ async function main(): Promise<void> {
   );
 
   try {
+    const vscodeExecutablePath = await resolveVSCodeExecutablePath();
     await runTests({
+      vscodeExecutablePath,
       extensionDevelopmentPath: path.resolve(__dirname, "../../.."),
       extensionTestsPath: path.resolve(__dirname, "./suite/index"),
       launchArgs: [
@@ -36,6 +38,16 @@ async function main(): Promise<void> {
     rmSync(workspaceDir, { recursive: true, force: true });
     rmSync(userDataDir, { recursive: true, force: true });
   }
+}
+
+async function resolveVSCodeExecutablePath(): Promise<string> {
+  const executablePath = await downloadAndUnzipVSCode();
+  if (existsSync(executablePath) || process.platform !== "darwin") {
+    return executablePath;
+  }
+
+  const renamedExecutablePath = path.join(path.dirname(executablePath), "Code");
+  return existsSync(renamedExecutablePath) ? renamedExecutablePath : executablePath;
 }
 
 main();

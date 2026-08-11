@@ -100,6 +100,32 @@ describe.skipIf(!hasGradle() || !hasKotlinc())("gradle classpath execution", () 
     expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
     expect(result.results).toEqual(new Map([[2, "hello from gradle"]]));
   }, 90000);
+
+  it("resolves the nearest Gradle subproject classpath", async () => {
+    const fixtureRoot = path.resolve("test/fixtures/gradle-multi");
+    const classpath = await resolveGradleClasspath(fixtureRoot, {
+      timeoutMs: 60000,
+      worksheetDir: path.join(fixtureRoot, "app", "src"),
+    });
+
+    expect(classpath.success, classpath.stderr).toBe(true);
+    expect(classpath.classpath.length).toBeGreaterThan(0);
+
+    const result = await executeWorksheet(
+      [
+        "import demo.SubprojectGreeting",
+        "SubprojectGreeting.message()",
+      ].join("\n"),
+      {
+        kotlinCommand: "kotlinc",
+        timeoutMs: 20000,
+        classpath: classpath.classpath,
+      },
+    );
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results).toEqual(new Map([[2, "hello from gradle subproject"]]));
+  }, 90000);
 });
 
 async function createTempDir(prefix: string): Promise<string> {
