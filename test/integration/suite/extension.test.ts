@@ -96,7 +96,7 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     await configureExecution(document.uri);
 
     await vscode.commands.executeCommand("kotlinWorksheet.run");
-    assert.ok(document.getText().includes("// => 2"));
+    await waitFor(() => document.getText().includes("// => 2"));
 
     const editor = await vscode.window.showTextDocument(document);
     await editor.edit((builder) => builder.replace(document.lineAt(0).range, "val x = 2"));
@@ -108,7 +108,7 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     await configureExecution(document.uri);
 
     await vscode.commands.executeCommand("kotlinWorksheet.run");
-    assert.ok(document.getText().includes("// => 2"));
+    await waitFor(() => document.getText().includes("// => 2"));
 
     await updateSetting("kotlinCommand", "definitely-not-a-real-kotlinc-command", document.uri);
     await vscode.commands.executeCommand("kotlinWorksheet.run");
