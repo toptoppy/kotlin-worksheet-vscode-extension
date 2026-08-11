@@ -1,0 +1,163 @@
+name: Publish Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix, for example 0.5.0"
+        required: true
+        type: string
+
+concurrency:
+  group: marketplace-publish
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          fetch-depth: 0
+
+      - name: Validate version and tag
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use the MAJOR.MINOR.PATCH format: $RELEASE_VERSION"
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          tag_version="$(git describe --tags --exact-match HEAD 2>/dev/null || true)"
+          expected_tag="v$RELEASE_VERSION"
+
+          if [[ "$package_version" != "$RELEASE_VERSION" ]]; then
+            echo "package.json version is $package_version, expected $RELEASE_VERSION"
+            exit 1
+          fi
+          if [[ "$tag_version" != "$expected_tag" ]]; then
+            echo "Checked out tag is $tag_version, expected $expected_tag"
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Kotlin compiler
+        run: |
+          curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v2.4.0/kotlin-compiler-2.4.0.zip -o /tmp/kotlin-compiler.zip
+          unzip -q /tmp/kotlin-compiler.zip -d /tmp/kotlin-compiler
+          echo "/tmp/kotlin-compiler/kotlinc/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify toolchain
+        run: |
+          kotlinc -version
+          gradle --version
+
+      - name: Run release checks and package VSIX
+        run: pnpm check
+
+      - name: Run integration tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: pnpm test:integration
+
+      - name: Verify release VSIX
+        shell: bash
+        run: |
+          vsix="kotlin-worksheet-${RELEASE_VERSION}.vsix"
+          test -f "$vsix"
+          node -e "const fs = require('node:fs'); const file = process.argv[1]; const bytes = fs.statSync(file).size; if (bytes >= 1048576) throw new Error(file + ' exceeds 1 MiB'); console.log(file + ' is ' + bytes + ' bytes');" "$vsix"
+
+      - name: Upload checked VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-worksheet-${{ inputs.version }}-vsix
+          path: kotlin-worksheet-${{ inputs.version }}.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish to Visual Studio Marketplace
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: marketplace
+      url: https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      TAG_NAME: v${{ inputs.version }}
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install publishing dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download checked VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: kotlin-worksheet-${{ inputs.version }}-vsix
+          path: .
+
+      - name: Publish exact VSIX
+        run: pnpm exec vsce publish --packagePath "kotlin-worksheet-${RELEASE_VERSION}.vsix"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          vsix="kotlin-worksheet-${RELEASE_VERSION}.vsix"
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$vsix" --clobber
+          else
+            gh release create "$TAG_NAME" "$vsix" \
+              --verify-tag \
+              --title "Kotlin Worksheet $RELEASE_VERSION" \
+              --generate-notes
+          fi

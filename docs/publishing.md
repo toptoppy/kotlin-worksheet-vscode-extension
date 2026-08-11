@@ -41,6 +41,27 @@ Paste the Marketplace Personal Access Token when prompted.
 
 For manual publishing, a PAT is acceptable. For long-term automated publishing, plan to move to Microsoft Entra ID authentication because Azure DevOps global PATs are scheduled for retirement on December 1, 2026.
 
+## Manual GitHub Actions Publishing
+
+Marketplace publishing is intentionally manual. Configure the repository before
+the first release:
+
+1. Create a GitHub environment named `marketplace`.
+2. Add required reviewers to that environment so publishing requires approval.
+3. Add an encrypted environment secret named `VSCE_PAT` containing the
+   Marketplace publishing token.
+4. Push a version-matching tag such as `v0.5.0` after the release commit has
+   passed normal CI.
+5. Open **Actions > Publish Extension > Run workflow** and enter `0.5.0`.
+
+The workflow checks out `v0.5.0`, verifies that `package.json` contains
+`0.5.0`, runs the Kotlin and Gradle checks, runs integration tests, and uploads
+the checked VSIX as an artifact. Only then does the protected `marketplace`
+environment allow the publish job to run. The exact checked VSIX is published
+and attached to the GitHub release.
+
+The workflow never creates tags and never runs for ordinary branch pushes.
+
 ## Release Version Rules
 
 Use semantic versioning in `package.json`.
