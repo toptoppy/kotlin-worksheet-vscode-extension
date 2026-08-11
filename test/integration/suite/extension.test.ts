@@ -169,14 +169,17 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
       await waitFor(() => (vscode.workspace.workspaceFolders?.length ?? 0) > insertionIndex);
       const selectedFolder = vscode.workspace.workspaceFolders?.[insertionIndex];
       assert.ok(selectedFolder);
+      const selectedFolderUri = selectedFolder.uri.toString();
 
       await vscode.commands.executeCommand("kotlinWorksheet.newWorksheet", selectedFolder);
 
       await waitFor(() => vscode.workspace.textDocuments.some(
-        (document) => path.dirname(document.fileName) === secondRoot && document.fileName.endsWith(".worksheet.kts"),
+        (document) => document.fileName.endsWith(".worksheet.kts")
+          && vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString() === selectedFolderUri,
       ));
       const created = vscode.workspace.textDocuments.find(
-        (document) => path.dirname(document.fileName) === secondRoot && document.fileName.endsWith(".worksheet.kts"),
+        (document) => document.fileName.endsWith(".worksheet.kts")
+          && vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString() === selectedFolderUri,
       );
       assert.ok(created, "Expected the worksheet in the selected workspace folder");
     } finally {
