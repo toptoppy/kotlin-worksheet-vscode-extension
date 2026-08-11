@@ -21,6 +21,12 @@ println("hello") // => hello
 Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
 Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle classpath resolution, or automatic detection.
 
+## Set kotlinc 
+- Run `kotlinc -version` and result must be like `info: kotlinc-jvm 2.x.10 (JRE 2x.xxx)`
+- (If there is no kotlinc please install by using `sdk install kotlin` then check again
+- Run `which kotlinc` and result should be like `${HOME}/.sdkman/candidates/kotlin/current/bin/kotlinc`
+- Copy and then paste kotlinc path into "Kotlin Worksheet: Kotlin Command" in plugin setting 
+
 ## Install For Users
 
 Install from the Visual Studio Marketplace:
