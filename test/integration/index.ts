@@ -2,6 +2,7 @@ import { downloadAndUnzipVSCode, runTests } from "@vscode/test-electron";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 async function main(): Promise<void> {
   const userDataDir = mkdtempSync(path.join(tmpdir(), "kws-userdata-"));
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
         "--user-data-dir",
         userDataDir,
         "--folder-uri",
-        `file://${workspaceDir}`,
+        pathToFileURL(workspaceDir).toString(),
       ],
     });
   } finally {

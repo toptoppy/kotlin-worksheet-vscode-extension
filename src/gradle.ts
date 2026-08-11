@@ -196,7 +196,7 @@ function buildInitScript(): string {
     "  def worksheetDir = requestedWorksheetDir == null",
     "    ? root.projectDir.toPath().toAbsolutePath().normalize()",
     "    : new File(requestedWorksheetDir).toPath().toAbsolutePath().normalize()",
-    "  def target = gradle.allprojects",
+    "  def target = root.allprojects",
     "    .findAll { project ->",
     "      def projectDir = project.projectDir.toPath().toAbsolutePath().normalize()",
     "      worksheetDir == projectDir || worksheetDir.startsWith(projectDir)",
