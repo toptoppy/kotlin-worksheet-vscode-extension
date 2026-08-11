@@ -172,6 +172,9 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
 
       await vscode.commands.executeCommand("kotlinWorksheet.newWorksheet", selectedFolder);
 
+      await waitFor(() => vscode.workspace.textDocuments.some(
+        (document) => path.dirname(document.fileName) === secondRoot && document.fileName.endsWith(".worksheet.kts"),
+      ));
       const created = vscode.workspace.textDocuments.find(
         (document) => path.dirname(document.fileName) === secondRoot && document.fileName.endsWith(".worksheet.kts"),
       );
