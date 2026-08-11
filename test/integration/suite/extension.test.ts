@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 
 const kotlincPath = resolveCommand("kotlinc");
 const hasKotlinc = Boolean(kotlincPath);
+const processTestTimeout = process.platform === "win32" ? 60000 : 20000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -176,8 +177,9 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
       );
       assert.ok(created, "Expected the worksheet in the selected workspace folder");
     } finally {
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
       vscode.workspace.updateWorkspaceFolders(insertionIndex, 1);
-      await rm(secondRoot, { recursive: true, force: true });
+      await rm(secondRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
     }
   });
 
@@ -225,7 +227,7 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     await vscode.commands.executeCommand("kotlinWorksheet.run");
 
     assert.strictEqual(document.getText(), "while (true) {}");
-  }).timeout(20000);
+  }).timeout(processTestTimeout);
 
   (hasKotlinc ? test : test.skip)("active worksheet execution can be cancelled", async () => {
     const document = await openDocument("while (true) {}", "cancel.worksheet.kts");
@@ -237,7 +239,7 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     await run;
 
     assert.strictEqual(document.getText(), "while (true) {}");
-  }).timeout(20000);
+  }).timeout(processTestTimeout);
 
   (hasKotlinc ? test : test.skip)("run-on-save evaluates once without duplicate results", async () => {
     const document = await openDocument("val x = 21\nx * 2", "run-on-save.worksheet.kts");

@@ -115,11 +115,24 @@ function terminateChild(pid: number | undefined, signal: NodeJS.Signals): void {
     return;
   }
 
+  if (process.platform === "win32") {
+    try {
+      const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      killer.unref();
+      return;
+    } catch {
+      // Fall back to terminating the direct process below.
+    }
+  }
+
   try {
-    if (process.platform === "win32") {
-      process.kill(pid, signal);
-    } else {
+    if (process.platform !== "win32") {
       process.kill(-pid, signal);
+    } else {
+      process.kill(pid, signal);
     }
   } catch {
     try {
