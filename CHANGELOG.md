@@ -6,6 +6,14 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+### Planned For 0.6.0
+
+- Run Selection and Run Current Block commands for focused worksheet evaluation.
+- Result placement that preserves unrelated worksheet results.
+- Full-output access for results truncated in the editor.
+- Editor title and context-menu actions for interactive evaluation.
+- Unit and Extension Development Host coverage for selection and block runs.
+
 ## [0.5.0] - 2026-08-11
 
 ### Added

@@ -2,7 +2,7 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "ws-kts-toppy",
   "license": "MIT",
   "icon": "assets/icon.png",

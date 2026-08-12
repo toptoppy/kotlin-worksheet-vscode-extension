@@ -39,7 +39,7 @@ Use this path for unreleased builds or pilot testing.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.5.0.vsix
+   kotlin-worksheet-0.6.0.vsix
    ```
 
 2. Open VS Code.
@@ -50,7 +50,7 @@ Use this path for unreleased builds or pilot testing.
    Extensions: Install from VSIX...
    ```
 
-5. Select `kotlin-worksheet-0.5.0.vsix`.
+5. Select `kotlin-worksheet-0.6.0.vsix`.
 6. Reload VS Code if prompted.
 
 ### From Source
@@ -62,7 +62,7 @@ pnpm install
 pnpm package
 ```
 
-Then install the generated `kotlin-worksheet-0.5.0.vsix` using `Extensions: Install from VSIX...`.
+Then install the generated `kotlin-worksheet-0.6.0.vsix` using `Extensions: Install from VSIX...`.
 
 ## Install Kotlin
 

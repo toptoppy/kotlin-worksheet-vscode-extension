@@ -50,12 +50,12 @@ the first release:
 2. Add required reviewers to that environment so publishing requires approval.
 3. Add an encrypted environment secret named `VSCE_PAT` containing the
    Marketplace publishing token.
-4. Push a version-matching tag such as `v0.5.0` after the release commit has
+4. Push a version-matching tag such as `v0.6.0` after the release commit has
    passed normal CI.
-5. Open **Actions > Publish Extension > Run workflow** and enter `0.5.0`.
+5. Open **Actions > Publish Extension > Run workflow** and enter `0.6.0`.
 
-The workflow checks out `v0.5.0`, verifies that `package.json` contains
-`0.5.0`, runs the Kotlin and Gradle checks, runs integration tests, and uploads
+The workflow checks out `v0.6.0`, verifies that `package.json` contains
+`0.6.0`, runs the Kotlin and Gradle checks, runs integration tests, and uploads
 the checked VSIX as an artifact. Only then does the protected `marketplace`
 environment allow the publish job to run. The exact checked VSIX is published
 and attached to the GitHub release.
@@ -74,6 +74,10 @@ Marketplace does not allow publishing the same version twice. Every Marketplace 
 
 ## Safe Manual Release Flow
 
+Use this flow only after the target version's features are implemented and
+cross-platform CI is green. Updating the version prepares a release; it does
+not mean the release is ready to publish.
+
 1. Start from a clean, updated `main` branch:
 
    ```sh
@@ -86,19 +90,19 @@ Marketplace does not allow publishing the same version twice. Every Marketplace 
    Example:
 
    ```text
-   0.4.0 -> 0.5.0
+   0.5.0 -> 0.6.0
    ```
 
 3. Update `package.json`:
 
    ```json
-   "version": "0.5.0"
+   "version": "0.6.0"
    ```
 
 4. Move `CHANGELOG.md` entries from `Unreleased` into the new version section:
 
    ```md
-   ## [0.5.0] - YYYY-MM-DD
+   ## [0.6.0] - YYYY-MM-DD
    ```
 
 5. Run the full release check:
@@ -127,20 +131,20 @@ Marketplace does not allow publishing the same version twice. Every Marketplace 
 
    ```sh
    git add package.json CHANGELOG.md
-   git commit -m "Release 0.5.0"
+   git commit -m "Release 0.6.0"
    ```
 
 8. Publish the exact VSIX that was checked:
 
    ```sh
-   pnpm exec vsce publish --packagePath kotlin-worksheet-0.5.0.vsix
+   pnpm exec vsce publish --packagePath kotlin-worksheet-0.6.0.vsix
    ```
 
 9. Tag the release after Marketplace publish succeeds:
 
    ```sh
-   git tag v0.5.0
-   git push origin main v0.5.0
+   git tag v0.6.0
+   git push origin main v0.6.0
    ```
 
 10. Verify the Marketplace page shows the new version:
@@ -166,7 +170,7 @@ Use this only when you are comfortable with `vsce` updating `package.json` and c
 Use pre-release publishing when you want early feedback without replacing the stable release channel:
 
 ```sh
-pnpm exec vsce publish --pre-release --packagePath kotlin-worksheet-0.5.0.vsix
+pnpm exec vsce publish --pre-release --packagePath kotlin-worksheet-0.6.0.vsix
 ```
 
 Use pre-release builds for pilot customers when Marketplace distribution is easier than sharing a VSIX directly.

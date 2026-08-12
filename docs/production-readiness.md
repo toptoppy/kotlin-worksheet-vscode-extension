@@ -32,7 +32,7 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Reliable decoration and diagnostic lifecycle across edits and editor visibility changes.
 - Native getting-started walkthrough.
 - Command-level extension-host tests for core success and failure paths.
-- Packaged 0.5.0 VSIX installation validated in an isolated macOS profile.
+- Packaged 0.6.0 development VSIX installation validated in an isolated macOS profile.
 - CI installs and verifies the packaged VSIX in isolated Linux, macOS, and Windows profiles.
 
 ## Remaining Release QA
