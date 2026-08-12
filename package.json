@@ -35,6 +35,8 @@
   "activationEvents": [
     "onLanguage:kotlin",
     "onCommand:kotlinWorksheet.run",
+    "onCommand:kotlinWorksheet.runSelection",
+    "onCommand:kotlinWorksheet.runCurrentBlock",
     "onCommand:kotlinWorksheet.clearResults",
     "onCommand:kotlinWorksheet.newWorksheet",
     "onCommand:kotlinWorksheet.toggleRunOnSave",
@@ -53,6 +55,18 @@
         "command": "kotlinWorksheet.run",
         "title": "Kotlin Worksheet: Run",
         "icon": "$(play)",
+        "enablement": "kotlinWorksheet.active"
+      },
+      {
+        "command": "kotlinWorksheet.runSelection",
+        "title": "Kotlin Worksheet: Run Selection",
+        "icon": "$(play-circle)",
+        "enablement": "kotlinWorksheet.active"
+      },
+      {
+        "command": "kotlinWorksheet.runCurrentBlock",
+        "title": "Kotlin Worksheet: Run Current Block",
+        "icon": "$(play-circle)",
         "enablement": "kotlinWorksheet.active"
       },
       {
@@ -164,11 +178,31 @@
           "command": "kotlinWorksheet.run",
           "when": "kotlinWorksheet.active",
           "group": "navigation"
+        },
+        {
+          "command": "kotlinWorksheet.runSelection",
+          "when": "kotlinWorksheet.active && editorHasSelection",
+          "group": "navigation"
+        },
+        {
+          "command": "kotlinWorksheet.runCurrentBlock",
+          "when": "kotlinWorksheet.active",
+          "group": "navigation"
         }
       ],
       "editor/context": [
         {
           "command": "kotlinWorksheet.run",
+          "when": "kotlinWorksheet.active",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.runSelection",
+          "when": "kotlinWorksheet.active && editorHasSelection",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.runCurrentBlock",
           "when": "kotlinWorksheet.active",
           "group": "1_modification"
         },

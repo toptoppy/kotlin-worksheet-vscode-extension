@@ -3,48 +3,65 @@
 This roadmap follows the 0.5.0 release and defines the planned milestones for
 the first stable release.
 
-## v0.6.0: Interactive Evaluation
+## v0.6.0: Functional Types And Interactive Evaluation
 
-Goal: make it possible to evaluate smaller parts of a worksheet during daily
-development.
+Goal: make functional Kotlin types visible and make it possible to evaluate
+smaller parts of a worksheet during daily development.
 
-Status: Planned. The repository is prepared for 0.6.0 development, but the
-features below are not implemented yet.
+Status: Implemented in the 0.6.0 development tree. Release packaging and
+publishing remain separate release steps.
 
-- [ ] Run Selection command.
-- [ ] Run Current Block command.
-- [ ] Place results at the selected or current expression.
-- [ ] Show complete output for truncated results.
-- [ ] Preserve unrelated worksheet results.
-- [ ] Add context-menu and editor-title commands.
-- [ ] Add unit and integration coverage for selection and block execution.
+- [x] Display function declaration types such as `(Int, Int) -> Int`.
+- [x] Display same-worksheet function reference and lambda types.
+- [x] Avoid runtime object output for supported function values.
+- [x] Keep `println` and side-effect output in Runtime Output.
+- [x] Run Selection command.
+- [x] Run Current Block command.
+- [x] Place results at the selected or current expression.
+- [x] Preserve unrelated worksheet results.
+- [x] Add context-menu and editor-title commands.
+- [x] Add unit, executor, and integration coverage for functional types,
+  selection, and
+  block execution.
 
-Exit criteria: users can evaluate small code sections reliably.
+Exit criteria: functional types are reliable, users can evaluate focused
+worksheet sections without disturbing unrelated results, and runtime output
+is separate from worksheet values.
 
-## v0.7.0: Project Integration
+## v0.7.0: Arrow-kt And Gradle Dependencies
 
-Goal: make worksheets fast and reliable inside standard Kotlin JVM projects.
+Goal: support Arrow-kt and other project dependencies through reliable Kotlin
+JVM Gradle classpath integration.
 
+- [ ] Add an Arrow-kt Gradle fixture using Maven Central.
+- [ ] Test `Either`, `Option`, and functional transformations.
+- [ ] Verify dependencies from root projects and subprojects.
+- [ ] Improve missing dependency diagnostics.
 - [ ] Cache Gradle classpaths between runs.
 - [ ] Add a classpath refresh command.
 - [ ] Improve dependency and subproject resolution.
 - [ ] Support more common JVM Gradle layouts.
 - [ ] Improve Gradle fallback diagnostics.
-- [ ] Add dependency and import examples.
 - [ ] Test Gradle integration across macOS, Linux, and Windows.
+- [ ] Add Arrow-kt setup and dependency examples.
 
-Exit criteria: worksheets work reliably in normal Kotlin JVM projects.
+Exit criteria: a Kotlin JVM worksheet can import and execute Arrow-kt APIs
+through the project's runtime classpath.
 
 ## v0.8.0: Kotlin Compatibility
 
 Goal: support broader Kotlin syntax without producing misleading results.
 
+- [ ] Display function declaration signatures.
+- [ ] Analyze extension, generic, and suspend function declarations.
 - [ ] Improve nested destructuring and complex declaration results.
+- [ ] Support more lambda and function-reference cases.
 - [ ] Add diagnostics for unsupported syntax.
 - [ ] Improve standalone external dependency configuration.
 - [ ] Improve performance for large worksheets.
 - [ ] Add more Kotlin syntax fixtures and compatibility tests.
-- [ ] Decide whether `.worksheet.kt` support is required.
+- [ ] Decide whether `.worksheet.kt` support is required after `.worksheet.kts`
+  behavior is stable.
 
 Exit criteria: supported Kotlin behavior is documented and unsupported cases
 are explicit.
@@ -72,6 +89,8 @@ Supported baseline:
 - `.worksheet.kts` files.
 - Local `kotlinc` execution.
 - Standard Kotlin JVM Gradle projects.
+- Arrow-kt through Gradle project dependencies.
+- Functional type display for supported lambda and function-reference cases.
 - Inline comments and decoration rendering.
 - Diagnostics, cancellation, timeouts, and run-on-save.
 - VS Code on macOS, Linux, and Windows.
@@ -92,7 +111,7 @@ Deferred unless fully designed and tested:
 - Android-specific projects.
 - Kotlin Multiplatform projects.
 - Custom webview UI.
-- Arbitrary dependency resolution.
+- Arbitrary standalone dependency downloading.
 
 ## Release Process
 

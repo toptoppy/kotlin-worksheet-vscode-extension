@@ -42,21 +42,22 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
     let stdout = "";
     let stderr = "";
     let settled = false;
-    let timedOut = false;
-    let cancelled = false;
+    let terminationReason: "timedOut" | "cancelled" | undefined;
     let forceKillTimeout: NodeJS.Timeout | undefined;
 
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      terminateChild(child.pid, "SIGTERM");
-      forceKillTimeout = setTimeout(() => terminateChild(child.pid, "SIGKILL"), 1000);
-    }, options.timeoutMs);
+    const requestTermination = (reason: "timedOut" | "cancelled") => {
+      if (settled || terminationReason) {
+        return;
+      }
 
-    const cancel = () => {
-      cancelled = true;
+      terminationReason = reason;
       terminateChild(child.pid, "SIGTERM");
       forceKillTimeout = setTimeout(() => terminateChild(child.pid, "SIGKILL"), 1000);
     };
+
+    const timeout = setTimeout(() => requestTermination("timedOut"), options.timeoutMs);
+
+    const cancel = () => requestTermination("cancelled");
     options.cancellationSignal?.addEventListener("abort", cancel, { once: true });
 
     const cleanup = () => {
@@ -84,11 +85,11 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
       cleanup();
       resolve({
         stdout,
-        stderr: cancelled ? `${stderr}Command execution cancelled.` : `${stderr}${error.message}`,
+        stderr: terminationReason === "cancelled" ? `${stderr}Command execution cancelled.` : `${stderr}${error.message}`,
         exitCode: null,
-        timedOut,
-        cancelled,
-        startError: cancelled ? undefined : error.message,
+        timedOut: terminationReason === "timedOut",
+        cancelled: terminationReason === "cancelled",
+        startError: terminationReason ? undefined : error.message,
       });
     });
 
@@ -101,10 +102,10 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
       cleanup();
       resolve({
         stdout,
-        stderr: cancelled ? `${stderr}Command execution cancelled.` : stderr,
+        stderr: terminationReason === "cancelled" ? `${stderr}Command execution cancelled.` : stderr,
         exitCode: code,
-        timedOut,
-        cancelled,
+        timedOut: terminationReason === "timedOut",
+        cancelled: terminationReason === "cancelled",
       });
     });
   });

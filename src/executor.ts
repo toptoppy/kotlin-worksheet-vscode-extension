@@ -6,8 +6,9 @@ import type { WorksheetDiagnostic } from "./worksheet.js";
 import {
   instrumentWorksheet,
   parseKotlinDiagnostics,
-  parseWorksheetOutput,
+  parseWorksheetOutputDetails,
   stripWorksheetMarkers,
+  type WorksheetRange,
 } from "./worksheet.js";
 
 export interface KotlinWorksheetExecution {
@@ -16,6 +17,7 @@ export interface KotlinWorksheetExecution {
   stderr: string;
   exitCode: number | null;
   results: Map<number, string>;
+  runtimeOutput: string;
   diagnostics: WorksheetDiagnostic[];
   timedOut: boolean;
   cancelled: boolean;
@@ -27,13 +29,14 @@ export interface KotlinWorksheetExecutionOptions {
   timeoutMs: number;
   cancellationSignal?: AbortSignal;
   classpath?: string[];
+  resultRange?: WorksheetRange;
 }
 
 export async function executeWorksheet(
   source: string,
   options: KotlinWorksheetExecutionOptions,
 ): Promise<KotlinWorksheetExecution> {
-  const instrumented = instrumentWorksheet(source);
+  const instrumented = instrumentWorksheet(source, undefined, { resultRange: options.resultRange });
   const tempDir = await mkdtemp(path.join(tmpdir(), "kotlin-worksheet-"));
   const tempFile = path.join(tempDir, "worksheet.kts");
 
@@ -46,9 +49,9 @@ export async function executeWorksheet(
       options.cancellationSignal,
       options.classpath,
     );
-    const results = processResult.exitCode === 0
-      ? parseWorksheetOutput(processResult.stdout, instrumented.markerPrefix)
-      : new Map<number, string>();
+    const output = processResult.exitCode === 0
+      ? parseWorksheetOutputDetails(processResult.stdout, instrumented.markerPrefix)
+      : { results: new Map<number, string>(), runtimeOutput: "" };
     const diagnostics = parseKotlinDiagnostics(processResult.stderr, instrumented.generatedLineToSourceLine);
 
     return {
@@ -56,7 +59,8 @@ export async function executeWorksheet(
       stdout: stripWorksheetMarkers(processResult.stdout, instrumented.markerPrefix),
       stderr: processResult.stderr,
       exitCode: processResult.exitCode,
-      results,
+      results: output.results,
+      runtimeOutput: output.runtimeOutput.trimEnd(),
       diagnostics,
       timedOut: processResult.timedOut,
       cancelled: processResult.cancelled,

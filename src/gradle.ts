@@ -1,5 +1,5 @@
-import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { runCapturedCommand } from "./process.js";
@@ -71,7 +71,7 @@ export async function resolveGradleClasspath(
 
   try {
     await writeFile(initScript, buildInitScript(), "utf8");
-    const command = await detectGradleCommand(projectRoot);
+    const command = await detectGradleCommand(projectRoot, options.cancellationSignal);
     if (!command) {
       return {
         success: false,
@@ -163,29 +163,28 @@ async function hasGradleMarkers(dir: string): Promise<boolean> {
   return false;
 }
 
-export async function detectGradleCommand(projectRoot: string): Promise<GradleCommand | undefined> {
+export async function detectGradleCommand(projectRoot: string, cancellationSignal?: AbortSignal): Promise<GradleCommand | undefined> {
   const wrapper = path.join(projectRoot, process.platform === "win32" ? "gradlew.bat" : "gradlew");
   try {
     await access(wrapper, process.platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
     return { command: wrapper, args: [] };
   } catch {
-    return await commandExists("gradle") ? { command: "gradle", args: [] } : undefined;
+    return await commandExists("gradle", cancellationSignal) ? { command: "gradle", args: [] } : undefined;
   }
 }
 
-async function commandExists(command: string): Promise<boolean> {
+async function commandExists(command: string, cancellationSignal?: AbortSignal): Promise<boolean> {
   const test = await runCapturedCommand({
     command,
     args: ["-v"],
     timeoutMs: 10000,
+    cancellationSignal,
   });
   return test.exitCode === 0;
 }
 
 async function mkdirTemp(prefix: string): Promise<string> {
-  const dir = path.join(tmpdir(), prefix + Date.now().toString(36));
-  await mkdir(dir, { recursive: true });
-  return dir;
+  return mkdtemp(path.join(tmpdir(), prefix));
 }
 
 function buildInitScript(): string {

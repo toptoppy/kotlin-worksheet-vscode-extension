@@ -11,9 +11,13 @@ import {
   WORKSHEET_SUFFIX,
   applyWorksheetResults,
   formatWorksheetResult,
+  findWorksheetRange,
   isWorksheetPath,
   isWorksheetResultTruncated,
+  parseWorksheetResults,
   stripResultComments,
+  truncateWorksheetSource,
+  type WorksheetRange,
 } from "./worksheet.js";
 import { WorksheetRunRegistry } from "./run-state.js";
 import { buildWorksheetStatus } from "./status.js";
@@ -25,6 +29,7 @@ const suppressSaveRun = new Set<string>();
 const cleaningDocuments = new Set<string>();
 const preservingResults = new Set<string>();
 const decorationOptionsByDocument = new Map<string, vscode.DecorationOptions[]>();
+const decorationResultsByDocument = new Map<string, Map<number, string>>();
 const shownGradleFallbacks = new Set<string>();
 let nextRunId = 1;
 
@@ -59,6 +64,8 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(output, diagnostics, runOnSaveStatus, resultDecoration, { dispose: disposeRunStateListener });
   context.subscriptions.push(
     vscode.commands.registerCommand("kotlinWorksheet.run", () => runActiveWorksheet(output, diagnostics, resultDecoration, false)),
+    vscode.commands.registerCommand("kotlinWorksheet.runSelection", () => runSelection(output, diagnostics, resultDecoration)),
+    vscode.commands.registerCommand("kotlinWorksheet.runCurrentBlock", () => runCurrentBlock(output, diagnostics, resultDecoration)),
     vscode.commands.registerCommand("kotlinWorksheet.clearResults", () => clearActiveWorksheet(resultDecoration, diagnostics)),
     vscode.commands.registerCommand("kotlinWorksheet.newWorksheet", newWorksheet),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRunOnSave", toggleRunOnSave),
@@ -88,6 +95,8 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
+      worksheetRuns.cancel(uri);
+
       const cleaned = stripResultComments(event.document.getText());
       if (cleaned === event.document.getText()) {
         return;
@@ -97,8 +106,10 @@ export function activate(context: vscode.ExtensionContext): void {
       void replaceDocumentText(event.document, cleaned).finally(() => cleaningDocuments.delete(uri));
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
+      worksheetRuns.cancel(document.uri.toString());
       diagnostics.delete(document.uri);
       decorationOptionsByDocument.delete(document.uri.toString());
+      decorationResultsByDocument.delete(document.uri.toString());
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (
@@ -135,6 +146,8 @@ export function deactivate(): void {
   suppressSaveRun.clear();
   cleaningDocuments.clear();
   preservingResults.clear();
+  decorationOptionsByDocument.clear();
+  decorationResultsByDocument.clear();
   shownGradleFallbacks.clear();
 }
 
@@ -143,6 +156,7 @@ async function runActiveWorksheet(
   diagnostics: vscode.DiagnosticCollection,
   resultDecoration: vscode.TextEditorDecorationType,
   saveAfterEdit: boolean,
+  resultRange?: WorksheetRange,
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -150,7 +164,46 @@ async function runActiveWorksheet(
     return;
   }
 
-  await runWorksheetDocument(editor.document, output, diagnostics, resultDecoration, saveAfterEdit);
+  await runWorksheetDocument(editor.document, output, diagnostics, resultDecoration, saveAfterEdit, resultRange);
+}
+
+async function runSelection(
+  output: vscode.LogOutputChannel,
+  diagnostics: vscode.DiagnosticCollection,
+  resultDecoration: vscode.TextEditorDecorationType,
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file first.`);
+    return;
+  }
+  if (editor.selection.isEmpty) {
+    void vscode.window.showInformationMessage("Select worksheet code to run.");
+    return;
+  }
+
+  const range = findWorksheetRange(
+    editor.document.getText(),
+    editor.selection.start.line + 1,
+    editor.selection.end.line + 1,
+  );
+  await runWorksheetDocument(editor.document, output, diagnostics, resultDecoration, false, range);
+}
+
+async function runCurrentBlock(
+  output: vscode.LogOutputChannel,
+  diagnostics: vscode.DiagnosticCollection,
+  resultDecoration: vscode.TextEditorDecorationType,
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file first.`);
+    return;
+  }
+
+  const line = editor.selection.active.line + 1;
+  const range = findWorksheetRange(editor.document.getText(), line);
+  await runWorksheetDocument(editor.document, output, diagnostics, resultDecoration, false, range);
 }
 
 async function runWorksheetDocument(
@@ -159,6 +212,7 @@ async function runWorksheetDocument(
   diagnostics: vscode.DiagnosticCollection,
   resultDecoration: vscode.TextEditorDecorationType,
   saveAfterEdit: boolean,
+  resultRange?: WorksheetRange,
 ): Promise<void> {
   if (!isWorksheetPath(document.fileName)) {
     void vscode.window.showInformationMessage(`Kotlin worksheets must end with ${WORKSHEET_SUFFIX}.`);
@@ -204,6 +258,9 @@ async function runWorksheetDocument(
     const maxResultLength = config.get<number>("maxResultLength", 500);
     const executionMode = config.get<"auto" | "localKotlinc" | "gradleClasspath">("executionMode", "auto");
     let source = "";
+    let executionSource = "";
+    let previousResults = new Map<number, string>();
+    let sourceVersion = document.version;
 
     output.info(`${logPrefix} ----- Kotlin Worksheet run -----`);
     output.info(`${logPrefix} Worksheet: ${document.fileName}`);
@@ -217,10 +274,20 @@ async function runWorksheetDocument(
       },
       async (progress, token) => {
         progress.report({ message: "Preparing worksheet" });
+        previousResults = parseWorksheetResults(document.getText());
+        if (config.get<"inlineComments" | "decorations">("renderMode", "inlineComments") === "decorations") {
+          previousResults = new Map(decorationResultsByDocument.get(uri) ?? []);
+        }
         source = stripResultComments(document.getText());
         if (source !== document.getText()) {
-          await replaceDocumentText(document, source);
+          cleaningDocuments.add(uri);
+          try {
+            await replaceDocumentText(document, source);
+          } finally {
+            cleaningDocuments.delete(uri);
+          }
         }
+        sourceVersion = document.version;
         progress.report({ message: "Detecting execution mode" });
         worksheetRuns.transition(uri, "resolving");
         const subscription = token.onCancellationRequested(() => worksheetRuns.cancel(uri));
@@ -278,26 +345,44 @@ async function runWorksheetDocument(
           output.info(`${logPrefix} Invocation: ${kotlinCommand}${classpathArgument} -script <worksheet>`);
           progress.report({ message: "Running Kotlin" });
           worksheetRuns.transition(uri, "running");
-          const execution = await executeWorksheet(source, {
+          executionSource = resultRange ? truncateWorksheetSource(source, resultRange.endLine) : source;
+          const execution = await executeWorksheet(executionSource, {
             kotlinCommand,
             timeoutMs,
             cancellationSignal: run.cancellationSignal,
             classpath,
+            resultRange,
           });
 
           if (execution.success) {
+            const documentIsOpen = vscode.workspace.textDocuments.some(
+              (openDocument) => openDocument.uri.toString() === uri,
+            );
+            if (!documentIsOpen || document.version !== sourceVersion) {
+              output.warn(`${logPrefix} Results discarded because the worksheet changed or closed during execution.`);
+              return execution;
+            }
+
             progress.report({ message: "Applying results" });
             worksheetRuns.transition(uri, "applying");
             const renderMode = config.get<"inlineComments" | "decorations">("renderMode", "inlineComments");
+            const mergedResults = resultRange
+              ? mergeWorksheetResults(previousResults, execution.results, resultRange)
+              : execution.results;
             if (renderMode === "decorations") {
               const cleanedText = source;
               if (cleanedText !== document.getText()) {
-                await replaceDocumentText(document, cleanedText);
+                preservingResults.add(uri);
+                try {
+                  await replaceDocumentText(document, cleanedText);
+                } finally {
+                  preservingResults.delete(uri);
+                }
               }
-              applyWorksheetDecorations(document, execution.results, resultDecoration, maxResultLength);
+              applyWorksheetDecorations(document, mergedResults, resultDecoration, maxResultLength);
             } else {
               clearWorksheetDecorations(document, resultDecoration);
-              const updatedText = applyWorksheetResults(source, execution.results, { maxResultLength });
+              const updatedText = applyWorksheetResults(source, mergedResults, { maxResultLength });
               if (updatedText !== document.getText()) {
                 preservingResults.add(uri);
                 try {
@@ -334,8 +419,8 @@ async function runWorksheetDocument(
       );
     }
 
-    if (execution.stdout.trim()) {
-      output.info(`${logPrefix} stdout:\n${execution.stdout.trimEnd()}`);
+    if (execution.runtimeOutput.trim()) {
+      output.info(`${logPrefix} Runtime Output:\n${execution.runtimeOutput.trimEnd()}`);
     }
 
     if (execution.stderr.trim()) {
@@ -667,6 +752,7 @@ async function clearActiveWorksheet(
     await replaceDocumentText(editor.document, cleaned);
   }
   clearWorksheetDecorations(editor.document, resultDecoration);
+  decorationResultsByDocument.delete(editor.document.uri.toString());
   diagnostics.delete(editor.document.uri);
 }
 
@@ -846,6 +932,26 @@ function applyWorksheetDecorations(
     }
   }
   decorationOptionsByDocument.set(document.uri.toString(), options);
+  decorationResultsByDocument.set(document.uri.toString(), new Map(results));
+}
+
+function mergeWorksheetResults(
+  previous: Map<number, string>,
+  next: Map<number, string>,
+  range: WorksheetRange,
+): Map<number, string> {
+  const merged = new Map(previous);
+  for (const line of Array.from(merged.keys())) {
+    if (line >= range.startLine && line <= range.endLine) {
+      merged.delete(line);
+    }
+  }
+  for (const [line, result] of next) {
+    if (line >= range.startLine && line <= range.endLine) {
+      merged.set(line, result);
+    }
+  }
+  return merged;
 }
 
 function clearWorksheetDecorations(
@@ -862,4 +968,5 @@ function clearWorksheetDecorations(
   }
 
   decorationOptionsByDocument.delete(docKey);
+  decorationResultsByDocument.delete(docKey);
 }

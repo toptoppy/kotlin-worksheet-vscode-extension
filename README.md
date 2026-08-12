@@ -4,7 +4,9 @@ Evaluate Kotlin worksheet files in VS Code.
 
 [Install from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet)
 
-Files ending in `.worksheet.kts` can be run with `Kotlin Worksheet: Run`. Run-on-save is available as an optional setting.
+Files ending in `.worksheet.kts` can be run with `Kotlin Worksheet: Run`. Use
+`Run Selection` or `Run Current Block` to evaluate focused code without
+disturbing unrelated results. Run-on-save is available as an optional setting.
 
 ```kotlin
 val x = 40 // => 40
@@ -82,6 +84,8 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 ## Commands
 
 - `Kotlin Worksheet: Run`
+- `Kotlin Worksheet: Run Selection`
+- `Kotlin Worksheet: Run Current Block`
 - `Kotlin Worksheet: Clear Results`
 - `Kotlin Worksheet: New Worksheet`
 - `Kotlin Worksheet: Toggle Run On Save`

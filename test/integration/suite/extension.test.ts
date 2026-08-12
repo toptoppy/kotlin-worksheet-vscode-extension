@@ -60,6 +60,8 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     );
 
     assert.ok(commands.includes("kotlinWorksheet.run"));
+    assert.ok(commands.includes("kotlinWorksheet.runSelection"));
+    assert.ok(commands.includes("kotlinWorksheet.runCurrentBlock"));
     assert.ok(!commands.includes("kotlinWorksheet.rerun"));
     assert.ok(commands.includes("kotlinWorksheet.clearResults"));
     assert.ok(commands.includes("kotlinWorksheet.newWorksheet"));
@@ -101,6 +103,39 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     const editor = await vscode.window.showTextDocument(document);
     await editor.edit((builder) => builder.replace(document.lineAt(0).range, "val x = 2"));
     await waitFor(() => !document.getText().includes("// =>"));
+  }).timeout(30000);
+
+  (hasKotlinc ? test : test.skip)("runs the selected worksheet statement", async () => {
+    const document = await openDocument(
+      "val base = 10\nbase + 1\nbase + 2\nbase + 3",
+      "selection.worksheet.kts",
+    );
+    await configureExecution(document.uri);
+    await vscode.window.showTextDocument(document);
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    await waitFor(() => document.getText().includes("base + 1 // => 11"));
+    const editor = await vscode.window.showTextDocument(document);
+    editor.selection = new vscode.Selection(new vscode.Position(3, 0), new vscode.Position(3, 8));
+
+    await vscode.commands.executeCommand("kotlinWorksheet.runSelection");
+    await waitFor(() => document.getText().includes("base + 3 // => 13"));
+    assert.strictEqual(document.lineAt(1).text, "base + 1 // => 11");
+    assert.strictEqual(document.lineAt(2).text, "base + 2 // => 12");
+  }).timeout(30000);
+
+  (hasKotlinc ? test : test.skip)("runs the current worksheet block", async () => {
+    const document = await openDocument(
+      "val first = 1\n\nval second = 2\nsecond + first\n\nval third = 3",
+      "block.worksheet.kts",
+    );
+    await configureExecution(document.uri);
+    const editor = await vscode.window.showTextDocument(document);
+    editor.selection = new vscode.Selection(new vscode.Position(3, 0), new vscode.Position(3, 0));
+
+    await vscode.commands.executeCommand("kotlinWorksheet.runCurrentBlock");
+    await waitFor(() => document.getText().includes("second + first // => 3"));
+    assert.strictEqual(document.lineAt(0).text.includes("// =>"), false);
+    assert.strictEqual(document.lineAt(5).text.includes("// =>"), false);
   }).timeout(30000);
 
   (hasKotlinc ? test : test.skip)("removes stale inline results before a failed run", async () => {

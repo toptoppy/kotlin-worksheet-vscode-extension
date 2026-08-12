@@ -19,9 +19,61 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.results).toEqual(new Map([
       [1, "40"],
       [2, "42"],
-      [3, "hello"],
     ]));
-    expect(result.stdout).toBe("40\n42\nhello\n");
+    expect(result.runtimeOutput).toBe("hello");
+  }, 20000);
+
+  it("applies the v0.6.0 result classification rules", async () => {
+    const result = await executeWorksheet([
+      "fun foo(x: Int): String = x.toString()",
+      "val fooRef = ::foo",
+      "val lambda = { x: Int -> x.toString() }",
+      "val result = lambda(10)",
+      "println(result)",
+    ].join("\n"), { kotlinCommand: "kotlinc", timeoutMs: 10000 });
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results).toEqual(new Map([
+      [1, "(Int) -> String"],
+      [2, "(Int) -> String"],
+      [3, "(Int) -> String"],
+      [4, "10"],
+    ]));
+    expect(result.runtimeOutput).toBe("10");
+  }, 20000);
+
+  it("executes the production orchestration example", async () => {
+    const result = await executeWorksheet([
+      "fun deleteProduction(target: String): Result<Unit> =",
+      "    runCatching {",
+      "        println(\"Deleting production $target...\")",
+      "    }",
+      "",
+      "fun orchestrationForDoomDay(",
+      "    dangerousThing: () -> Result<Unit>,",
+      "    anotherDangerousThing: () -> Result<Unit>",
+      "): Result<String> =",
+      "    runCatching {",
+      "        println(\"Doing something dangerous...\")",
+      "        dangerousThing().getOrThrow()",
+      "        anotherDangerousThing().getOrThrow()",
+      "        println(\"Finished doing something dangerous.\")",
+      "        \"All clear... for now.\"",
+      "    }",
+      "",
+      "val deleteProductionDatabase = { deleteProduction(\"Database\") }",
+      "val deleteProductionInstance = { deleteProduction(\"Instance\") }",
+      "val prepareToDestroy = orchestrationForDoomDay(deleteProductionDatabase, deleteProductionInstance)",
+      "val destroyYourOwnProduct = prepareToDestroy",
+      "println(destroyYourOwnProduct)",
+    ].join("\n"), { kotlinCommand: "kotlinc", timeoutMs: 10000 });
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results.get(1)).toBe("(String) -> Result<Unit>");
+    expect(result.results.get(6)).toBe("((() -> Result<Unit>), (() -> Result<Unit>)) -> Result<String>");
+    expect(result.results.get(20)).toBe("Success(All clear... for now.)");
+    expect(result.runtimeOutput).toContain("Deleting production Database...");
+    expect(result.runtimeOutput).toContain("Finished doing something dangerous.");
   }, 20000);
 
   it("returns diagnostics for compiler errors", async () => {
@@ -47,6 +99,22 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
 
     expect(result.success).toBe(true);
     expect(result.results).toEqual(new Map([[1, "3"]]));
+  }, 20000);
+
+  it("runs only the requested range while retaining preceding context", async () => {
+    const result = await executeWorksheet([
+      "val base = 10",
+      "base + 1",
+      "base + 2",
+      "base + 3",
+    ].join("\n"), {
+      kotlinCommand: "kotlinc",
+      timeoutMs: 10000,
+      resultRange: { startLine: 4, endLine: 4 },
+    });
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results).toEqual(new Map([[4, "13"]]));
   }, 20000);
 
   it("runs destructuring and multiline lambda worksheets", async () => {

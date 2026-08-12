@@ -136,6 +136,47 @@ val answer = 40 + 2 // => 42
 
 You can edit or remove `// => ...` comments manually. On the next worksheet run, the extension removes generated result comments and writes fresh results.
 
+### Result Rules
+
+The worksheet distinguishes static function information, evaluated values, and
+runtime output:
+
+| Source | Result |
+| --- | --- |
+| Function declaration | Function type, such as `(Int) -> String` |
+| Lambda or same-worksheet function reference | Inferred function type |
+| Normal expression | Evaluated value |
+| `println(...)` and other side effects | Runtime Output only |
+
+For example:
+
+```kotlin
+fun foo(x: Int): String = x.toString()
+// => (Int) -> String
+
+val fooRef = ::foo
+// => (Int) -> String
+
+val lambda = { x: Int -> x.toString() }
+// => (Int) -> String
+
+val result = lambda(10)
+// => 10
+
+println(result)
+```
+
+Function declarations are not called automatically. Printed text from the
+function body appears in Runtime Output only when the function is called.
+
+### Focused Evaluation
+
+`Kotlin Worksheet: Run Selection` evaluates the complete worksheet statements
+intersecting the current selection. `Kotlin Worksheet: Run Current Block`
+evaluates the statement under the cursor. Both commands retain preceding
+worksheet declarations as execution context and preserve results outside the
+executed range.
+
 Use `Kotlin Worksheet: Clear Results` to remove all generated result comments from the active worksheet.
 
 ## Manual vs Auto-run

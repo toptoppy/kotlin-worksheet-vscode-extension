@@ -71,6 +71,10 @@ Instrumentation inserts marker prints and explicit `println(...)` calls around s
 4. Gradle classpath resolution runs when applicable.
 5. Worksheet source is instrumented and written to a temporary script.
 6. The process layer executes Kotlin with timeout and cancellation support.
-7. Marker output becomes per-line results and compiler diagnostics map back to source lines.
+7. Marker output becomes per-line worksheet results and separate Runtime Output; compiler diagnostics map back to source lines.
+
+Focused evaluation truncates execution after the requested statement range,
+retains preceding source as context, and merges new results with the existing
+document result set.
 8. Results are applied as inline comments or cached editor decorations.
 9. Run state, status UI, diagnostics, and structured logs receive the terminal outcome.

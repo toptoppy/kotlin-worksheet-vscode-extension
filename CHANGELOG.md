@@ -6,13 +6,37 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+### Changed
+
+- Hardened process timeout and cancellation ownership to prevent conflicting
+  terminal states and duplicate force-kill timers.
+- Made Gradle temporary directories collision-safe and cancellation-aware.
+- Prevented stale worksheet results from applying after edits or document close.
+
 ### Planned For 0.6.0
 
+- Functional type display for explicitly typed lambdas and same-worksheet
+  function references.
 - Run Selection and Run Current Block commands for focused worksheet evaluation.
 - Result placement that preserves unrelated worksheet results.
-- Full-output access for results truncated in the editor.
 - Editor title and context-menu actions for interactive evaluation.
 - Unit and Extension Development Host coverage for selection and block runs.
+
+### Implemented In 0.6.0 Development
+
+- Function declarations now show supported function types without executing
+  their bodies.
+- Supported lambdas and same-worksheet function references show inferred
+  function types.
+- Normal expressions continue to show evaluated values.
+- `println` and runtime side effects are reported in Runtime Output.
+- Added Run Selection and Run Current Block commands with preceding worksheet
+  context and unrelated-result preservation.
+
+### Planned For 0.7.0
+
+- Arrow-kt Gradle fixture and dependency integration coverage.
+- Better Gradle dependency diagnostics, classpath caching, and refresh support.
 
 ## [0.5.0] - 2026-08-11
 
