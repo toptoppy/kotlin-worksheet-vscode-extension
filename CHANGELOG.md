@@ -38,6 +38,15 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Arrow-kt Gradle fixture and dependency integration coverage.
 - Better Gradle dependency diagnostics, classpath caching, and refresh support.
 
+## [0.6.1] - 2026-08-14
+
+### Fixed
+
+- Expanded function-type rendering for lambdas, anonymous functions,
+  callable references, receiver functions, nested types, and nullable types.
+- Kept callable-looking values such as properties, SAMs, callable objects,
+  widened `Any` values, and collections on runtime-value rendering.
+
 ## [0.5.0] - 2026-08-11
 
 ### Added
