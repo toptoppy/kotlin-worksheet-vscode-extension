@@ -42,6 +42,25 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.runtimeOutput).toBe("10");
   }, 20000);
 
+  it("keeps function-type coverage boundaries valid at runtime", async () => {
+    const result = await executeWorksheet([
+      "val multiply = fun(x: Int, y: Int): Int { return x * y }",
+      "data class User(val name: String, val age: Int)",
+      "val createUser = ::User",
+      "class CallableMultiplier { operator fun invoke(x: Int, y: Int): Int = x * y }",
+      "val callable = CallableMultiplier()",
+      "val functionAsAny: Any = { value: Int -> value * 2 }",
+      "val multiplyResult = multiply(2, 3)",
+    ].join("\n"), { kotlinCommand: "kotlinc", timeoutMs: 10000 });
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results.get(1)).toBe("(Int, Int) -> Int");
+    expect(result.results.get(3)).toBe("(String, Int) -> User");
+    expect(result.results.get(5)).not.toBe("(Int, Int) -> Int");
+    expect(result.results.get(6)).not.toBe("(Int) -> Int");
+    expect(result.results.get(7)).toBe("6");
+  }, 20000);
+
   it("executes the production orchestration example", async () => {
     const result = await executeWorksheet([
       "fun deleteProduction(target: String): Result<Unit> =",
@@ -70,7 +89,7 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
 
     expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
     expect(result.results.get(1)).toBe("(String) -> Result<Unit>");
-    expect(result.results.get(6)).toBe("((() -> Result<Unit>), (() -> Result<Unit>)) -> Result<String>");
+    expect(result.results.get(6)).toBe("(() -> Result<Unit>, () -> Result<Unit>) -> Result<String>");
     expect(result.results.get(20)).toBe("Success(All clear... for now.)");
     expect(result.runtimeOutput).toContain("Deleting production Database...");
     expect(result.runtimeOutput).toContain("Finished doing something dangerous.");
