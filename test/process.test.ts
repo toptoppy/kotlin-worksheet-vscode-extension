@@ -39,7 +39,7 @@ describe("runCapturedCommand", () => {
     const stderr = "err".repeat(10000);
     const result = await runCapturedCommand({
       command: execPath,
-      args: ["-e", `process.stdout.write(${JSON.stringify(stdout)}); process.stderr.write(${JSON.stringify(stderr)});`],
+      args: ["-e", "process.stdout.write('out'.repeat(10000)); process.stderr.write('err'.repeat(10000));"],
       timeoutMs: 5000,
       shell: false,
       detached: false,
