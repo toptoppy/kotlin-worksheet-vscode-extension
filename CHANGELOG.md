@@ -38,6 +38,16 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Arrow-kt Gradle fixture and dependency integration coverage.
 - Better Gradle dependency diagnostics, classpath caching, and refresh support.
 
+## [0.6.2] - 2026-08-17
+
+### Changed
+
+- Added worksheet execution phase timing logs for preparation, mode detection,
+  Gradle classpath resolution, Kotlin execution, result application, and total
+  pipeline duration.
+- Avoided duplicate Gradle project-root lookup during worksheet execution.
+- Improved large stdout and stderr capture by buffering process output chunks.
+
 ## [0.6.1] - 2026-08-14
 
 ### Fixed
