@@ -33,4 +33,20 @@ describe("runCapturedCommand", () => {
     expect(result.cancelled).toBe(true);
     expect(result.timedOut).toBe(false);
   }, 5000);
+
+  it("captures large stdout and stderr output", async () => {
+    const stdout = "out".repeat(10000);
+    const stderr = "err".repeat(10000);
+    const result = await runCapturedCommand({
+      command: execPath,
+      args: ["-e", `process.stdout.write(${JSON.stringify(stdout)}); process.stderr.write(${JSON.stringify(stderr)});`],
+      timeoutMs: 5000,
+      shell: false,
+      detached: false,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(stdout);
+    expect(result.stderr).toBe(stderr);
+  }, 5000);
 });

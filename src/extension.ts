@@ -3,9 +3,9 @@ import { executeWorksheet } from "./executor.js";
 import { checkEnvironment, type EnvironmentCheckResult } from "./environment.js";
 import {
   describeGradleFailure,
-  detectExecutionMode,
   locateGradleProjectRoot,
   resolveGradleClasspath,
+  type ExecutionMode,
 } from "./gradle.js";
 import {
   WORKSHEET_SUFFIX,
@@ -261,6 +261,11 @@ async function runWorksheetDocument(
     let executionSource = "";
     let previousResults = new Map<number, string>();
     let sourceVersion = document.version;
+    const runStartedAt = Date.now();
+
+    const logPhase = (phase: string, startedAt: number) => {
+      output.debug(`${logPrefix} ${phase} completed in ${Date.now() - startedAt} ms.`);
+    };
 
     output.info(`${logPrefix} ----- Kotlin Worksheet run -----`);
     output.info(`${logPrefix} Worksheet: ${document.fileName}`);
@@ -273,6 +278,7 @@ async function runWorksheetDocument(
         cancellable: !saveAfterEdit,
       },
       async (progress, token) => {
+        let phaseStartedAt = Date.now();
         progress.report({ message: "Preparing worksheet" });
         previousResults = parseWorksheetResults(document.getText());
         if (config.get<"inlineComments" | "decorations">("renderMode", "inlineComments") === "decorations") {
@@ -288,26 +294,33 @@ async function runWorksheetDocument(
           }
         }
         sourceVersion = document.version;
+        logPhase("Preparation", phaseStartedAt);
         progress.report({ message: "Detecting execution mode" });
         worksheetRuns.transition(uri, "resolving");
         const subscription = token.onCancellationRequested(() => worksheetRuns.cancel(uri));
 
         try {
           const documentDir = path.dirname(document.fileName);
-          const resolvedMode = await detectExecutionMode(documentDir, executionMode);
+          phaseStartedAt = Date.now();
+          const gradleRoot = executionMode === "localKotlinc"
+            ? undefined
+            : await locateGradleProjectRoot(documentDir);
+          const resolvedMode = resolveExecutionMode(executionMode, gradleRoot);
+          logPhase("Execution mode detection", phaseStartedAt);
           worksheetRuns.setExecutionMode(uri, resolvedMode);
           output.info(`${logPrefix} Resolved execution mode: ${resolvedMode}`);
           let classpath: string[] = [];
 
           if (resolvedMode === "gradleClasspath") {
             progress.report({ message: "Resolving Gradle classpath" });
-            const gradleRoot = await locateGradleProjectRoot(documentDir);
             if (gradleRoot) {
+              phaseStartedAt = Date.now();
               const gradleResolution = await resolveGradleClasspath(gradleRoot, {
                 timeoutMs,
                 cancellationSignal: run.cancellationSignal,
                 worksheetDir: documentDir,
               });
+              logPhase("Gradle classpath resolution", phaseStartedAt);
 
               if (run.cancellationSignal.aborted) {
                 throw new Error("Worksheet execution cancelled.");
@@ -346,6 +359,7 @@ async function runWorksheetDocument(
           progress.report({ message: "Running Kotlin" });
           worksheetRuns.transition(uri, "running");
           executionSource = resultRange ? truncateWorksheetSource(source, resultRange.endLine) : source;
+          phaseStartedAt = Date.now();
           const execution = await executeWorksheet(executionSource, {
             kotlinCommand,
             timeoutMs,
@@ -353,6 +367,7 @@ async function runWorksheetDocument(
             classpath,
             resultRange,
           });
+          logPhase("Kotlin execution", phaseStartedAt);
 
           if (execution.success) {
             const documentIsOpen = vscode.workspace.textDocuments.some(
@@ -365,6 +380,7 @@ async function runWorksheetDocument(
 
             progress.report({ message: "Applying results" });
             worksheetRuns.transition(uri, "applying");
+            phaseStartedAt = Date.now();
             const renderMode = config.get<"inlineComments" | "decorations">("renderMode", "inlineComments");
             const mergedResults = resultRange
               ? mergeWorksheetResults(previousResults, execution.results, resultRange)
@@ -401,8 +417,10 @@ async function runWorksheetDocument(
                 suppressSaveRun.delete(uri);
               }
             }
+            logPhase("Result application", phaseStartedAt);
           }
 
+          output.debug(`${logPrefix} Total execution pipeline completed in ${Date.now() - runStartedAt} ms.`);
           return execution;
         } finally {
           subscription.dispose();
@@ -730,6 +748,21 @@ function finishWorksheetRun(
   } else {
     output.info(summary);
   }
+}
+
+function resolveExecutionMode(
+  requestedMode: ExecutionMode,
+  gradleRoot: string | undefined,
+): "localKotlinc" | "gradleClasspath" {
+  if (requestedMode === "localKotlinc") {
+    return "localKotlinc";
+  }
+
+  if (requestedMode === "gradleClasspath") {
+    return "gradleClasspath";
+  }
+
+  return gradleRoot ? "gradleClasspath" : "localKotlinc";
 }
 
 async function clearActiveWorksheet(

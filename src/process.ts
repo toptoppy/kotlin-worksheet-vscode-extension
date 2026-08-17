@@ -39,8 +39,8 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
       windowsHide: true,
     });
 
-    let stdout = "";
-    let stderr = "";
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
     let settled = false;
     let terminationReason: "timedOut" | "cancelled" | undefined;
     let forceKillTimeout: NodeJS.Timeout | undefined;
@@ -69,11 +69,11 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
     };
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8");
+      stdoutChunks.push(chunk);
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8");
+      stderrChunks.push(chunk);
     });
 
     child.on("error", (error) => {
@@ -83,6 +83,8 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
 
       settled = true;
       cleanup();
+      const stdout = Buffer.concat(stdoutChunks).toString("utf8");
+      const stderr = Buffer.concat(stderrChunks).toString("utf8");
       resolve({
         stdout,
         stderr: terminationReason === "cancelled" ? `${stderr}Command execution cancelled.` : `${stderr}${error.message}`,
@@ -100,6 +102,8 @@ export function runCapturedCommand(options: CapturedCommandOptions): Promise<Cap
 
       settled = true;
       cleanup();
+      const stdout = Buffer.concat(stdoutChunks).toString("utf8");
+      const stderr = Buffer.concat(stderrChunks).toString("utf8");
       resolve({
         stdout,
         stderr: terminationReason === "cancelled" ? `${stderr}Command execution cancelled.` : stderr,
