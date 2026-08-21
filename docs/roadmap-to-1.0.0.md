@@ -33,17 +33,19 @@ is separate from worksheet values.
 Goal: support Arrow-kt and other project dependencies through reliable Kotlin
 JVM Gradle classpath integration.
 
-- [ ] Add an Arrow-kt Gradle fixture using Maven Central.
-- [ ] Test `Either`, `Option`, and functional transformations.
-- [ ] Verify dependencies from root projects and subprojects.
-- [ ] Improve missing dependency diagnostics.
-- [ ] Cache Gradle classpaths between runs.
-- [ ] Add a classpath refresh command.
-- [ ] Improve dependency and subproject resolution.
-- [ ] Support more common JVM Gradle layouts.
-- [ ] Improve Gradle fallback diagnostics.
-- [ ] Test Gradle integration across macOS, Linux, and Windows.
-- [ ] Add Arrow-kt setup and dependency examples.
+- [x] Add an Arrow-kt Gradle fixture using Maven Central.
+- [x] Test `Either`, `Option`, and functional transformations.
+- [x] Verify dependencies from root projects and subprojects.
+- [ ] Improve missing dependency diagnostics (deferred beyond 0.7.0).
+- [x] Cache Gradle classpaths between runs.
+- [x] Add a classpath refresh command.
+- [ ] Improve dependency and subproject resolution (deferred beyond 0.7.0).
+- [ ] Support Android, Kotlin Multiplatform, and custom Gradle layouts
+  (deferred beyond 0.7.0).
+- [ ] Support more common JVM Gradle layouts (deferred beyond 0.7.0).
+- [ ] Improve Gradle fallback diagnostics (deferred beyond 0.7.0).
+- [ ] Test Gradle integration across macOS, Linux, and Windows (pending tagged CI verification).
+- [x] Add Arrow-kt setup and dependency examples in the Gradle fixture.
 
 Exit criteria: a Kotlin JVM worksheet can import and execute Arrow-kt APIs
 through the project's runtime classpath.

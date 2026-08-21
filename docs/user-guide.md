@@ -39,7 +39,7 @@ Use this path for unreleased builds or pilot testing.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.6.0.vsix
+   kotlin-worksheet-0.7.0.vsix
    ```
 
 2. Open VS Code.
@@ -50,7 +50,7 @@ Use this path for unreleased builds or pilot testing.
    Extensions: Install from VSIX...
    ```
 
-5. Select `kotlin-worksheet-0.6.0.vsix`.
+5. Select `kotlin-worksheet-0.7.0.vsix`.
 6. Reload VS Code if prompted.
 
 ### From Source
@@ -62,7 +62,7 @@ pnpm install
 pnpm package
 ```
 
-Then install the generated `kotlin-worksheet-0.6.0.vsix` using `Extensions: Install from VSIX...`.
+Then install the generated `kotlin-worksheet-0.7.0.vsix` using `Extensions: Install from VSIX...`.
 
 ## Install Kotlin
 
@@ -220,6 +220,11 @@ Manual runs show cancellable progress for preparation, execution-mode detection,
 
 The worksheet status bar shows Ready, Running, Passed, Failed, Cancelled, or Timed Out. Its tooltip includes run-on-save state, execution mode, and the last duration. Click it while a worksheet is running to cancel; otherwise click it to toggle run-on-save.
 
+Gradle-backed runs cache successful classpath resolutions. The log reports
+whether each Gradle classpath lookup was a cache hit, miss, invalidation,
+disabled lookup, or shared active request. The first run may still be slow;
+unchanged repeated Gradle runs should avoid repeated classpath resolution.
+
 ## Logs And Recovery
 
 Run `Kotlin Worksheet: Show Log` to open chronological execution logs. Each run records its worksheet, requested and resolved execution mode, safe invocation summary, duration, exit code, and terminal status.
@@ -283,6 +288,7 @@ worksheet source lines.
 - `Kotlin Worksheet: New Worksheet`: creates a starter worksheet file.
 - `Kotlin Worksheet: Toggle Run On Save`: switches between manual mode and run-on-save mode.
 - `Kotlin Worksheet: Toggle Render Mode`: switches between inline comments and decorations.
+- `Kotlin Worksheet: Refresh Gradle Classpath`: clears the cached classpath for the active worksheet project.
 - `Kotlin Worksheet: Check Environment`: verifies Kotlin, Gradle, execution mode, and workspace trust.
 - `Kotlin Worksheet: Show Log`: opens the chronological Kotlin Worksheet log.
 
@@ -294,6 +300,7 @@ worksheet source lines.
   "kotlinWorksheet.runOnSave": false,
   "kotlinWorksheet.renderMode": "inlineComments",
   "kotlinWorksheet.executionMode": "auto",
+  "kotlinWorksheet.gradleClasspathCache.enabled": true,
   "kotlinWorksheet.timeoutMs": 10000,
   "kotlinWorksheet.maxResultLength": 500
 }
@@ -316,6 +323,21 @@ Set it with:
 ```
 
 Gradle support works best with standard JVM projects that expose `sourceSets.main.runtimeClasspath`.
+
+Use `Kotlin Worksheet: Refresh Gradle Classpath` after generated outputs or
+dependency changes when you want to force the next run to resolve Gradle again.
+Set `kotlinWorksheet.gradleClasspathCache.enabled` to `false` to disable this
+cache for a workspace.
+
+For release validation, run the local Gradle cache benchmark from the repository:
+
+```sh
+pnpm benchmark:gradle-cache
+```
+
+The benchmark reports first-run `miss`, second-run `hit`, disabled-cache, and
+source-change `invalidated` timings. The second unchanged run should avoid the
+expensive Gradle resolution work and report `cache: hit`.
 
 ## Current Limitations
 

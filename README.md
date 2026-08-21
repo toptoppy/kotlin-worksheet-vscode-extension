@@ -22,6 +22,7 @@ println("hello") // => hello
 
 Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
 Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle classpath resolution, or automatic detection.
+Gradle-backed runs cache successful classpath resolutions and reuse them until Gradle build files or project sources change.
 The current support baseline is VS Code 1.100+, Kotlin 2.4.0, and macOS, Linux, or Windows. See the [support matrix](docs/user-guide.md#support-matrix) for Gradle limitations.
 
 ## Set Up Kotlin
@@ -71,10 +72,10 @@ Install from the Visual Studio Marketplace:
 
 Install from a local VSIX if you are testing an unreleased build:
 
-1. Download or build `kotlin-worksheet-0.6.0.vsix`.
+1. Download or build `kotlin-worksheet-0.7.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.6.0.vsix`.
+4. Select `kotlin-worksheet-0.7.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts`.
 7. Run `Kotlin Worksheet: Run`.
@@ -90,6 +91,7 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `Kotlin Worksheet: New Worksheet`
 - `Kotlin Worksheet: Toggle Run On Save`
 - `Kotlin Worksheet: Toggle Render Mode`
+- `Kotlin Worksheet: Refresh Gradle Classpath`
 - `Kotlin Worksheet: Check Environment`
 - `Kotlin Worksheet: Show Log`
 
@@ -99,8 +101,21 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `kotlinWorksheet.runOnSave`: run `.worksheet.kts` files on save, default `false`
 - `kotlinWorksheet.renderMode`: show results as `inlineComments` or `decorations`, default `inlineComments`
 - `kotlinWorksheet.executionMode`: choose `auto`, `localKotlinc`, or `gradleClasspath`, default `auto`
+- `kotlinWorksheet.gradleClasspathCache.enabled`: cache successful Gradle classpath resolutions, default `true`
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
 - `kotlinWorksheet.maxResultLength`: maximum displayed result length, default `500`
+
+## Performance
+
+The first Gradle-backed run may still be slow because Gradle must resolve and
+compile the project classpath. Repeated unchanged runs reuse the cached
+classpath and log whether the cache was a hit, miss, invalidation, or shared
+active request. Use `Kotlin Worksheet: Refresh Gradle Classpath` after changing
+generated outputs or when you want to force a fresh Gradle classpath.
+
+For the fastest simple worksheets, use `kotlinWorksheet.executionMode` set to
+`localKotlinc`, `kotlinWorksheet.renderMode` set to `decorations`, and run
+focused code with `Run Selection` or `Run Current Block`.
 
 ## Support
 

@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 import { executeWorksheet } from "./executor.js";
 import { checkEnvironment, type EnvironmentCheckResult } from "./environment.js";
+import { GradleClasspathCache } from "./gradle-cache.js";
 import {
   describeGradleFailure,
   locateGradleProjectRoot,
-  resolveGradleClasspath,
   type ExecutionMode,
 } from "./gradle.js";
 import {
@@ -31,6 +31,7 @@ const preservingResults = new Set<string>();
 const decorationOptionsByDocument = new Map<string, vscode.DecorationOptions[]>();
 const decorationResultsByDocument = new Map<string, Map<number, string>>();
 const shownGradleFallbacks = new Set<string>();
+const gradleClasspathCache = new GradleClasspathCache();
 let nextRunId = 1;
 
 type RecoveryAction =
@@ -70,6 +71,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("kotlinWorksheet.newWorksheet", newWorksheet),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRunOnSave", toggleRunOnSave),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRenderMode", () => toggleRenderMode(resultDecoration)),
+    vscode.commands.registerCommand("kotlinWorksheet.refreshGradleClasspath", () => refreshGradleClasspath(output)),
     vscode.commands.registerCommand("kotlinWorksheet.openSetupGuide", () => openSetupGuide(context.extensionUri)),
     vscode.commands.registerCommand("kotlinWorksheet.showOutput", () => output.show(true)),
     vscode.commands.registerCommand("kotlinWorksheet.checkEnvironment", () => checkWorksheetEnvironment(output)),
@@ -149,6 +151,7 @@ export function deactivate(): void {
   decorationOptionsByDocument.clear();
   decorationResultsByDocument.clear();
   shownGradleFallbacks.clear();
+  gradleClasspathCache.clear();
 }
 
 async function runActiveWorksheet(
@@ -257,6 +260,7 @@ async function runWorksheetDocument(
     const timeoutMs = config.get<number>("timeoutMs", 10000);
     const maxResultLength = config.get<number>("maxResultLength", 500);
     const executionMode = config.get<"auto" | "localKotlinc" | "gradleClasspath">("executionMode", "auto");
+    const gradleClasspathCacheEnabled = config.get<boolean>("gradleClasspathCache.enabled", true);
     let source = "";
     let executionSource = "";
     let previousResults = new Map<number, string>();
@@ -315,12 +319,14 @@ async function runWorksheetDocument(
             progress.report({ message: "Resolving Gradle classpath" });
             if (gradleRoot) {
               phaseStartedAt = Date.now();
-              const gradleResolution = await resolveGradleClasspath(gradleRoot, {
+              const gradleResolution = await gradleClasspathCache.resolve(gradleRoot, {
                 timeoutMs,
                 cancellationSignal: run.cancellationSignal,
                 worksheetDir: documentDir,
+                enabled: gradleClasspathCacheEnabled,
               });
               logPhase("Gradle classpath resolution", phaseStartedAt);
+              logGradleCacheStatus(output, logPrefix, gradleResolution.cacheStatus);
 
               if (run.cancellationSignal.aborted) {
                 throw new Error("Worksheet execution cancelled.");
@@ -763,6 +769,49 @@ function resolveExecutionMode(
   }
 
   return gradleRoot ? "gradleClasspath" : "localKotlinc";
+}
+
+async function refreshGradleClasspath(output: vscode.LogOutputChannel): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to refresh its Gradle classpath.`);
+    return;
+  }
+
+  const documentDir = path.dirname(editor.document.fileName);
+  const gradleRoot = await locateGradleProjectRoot(documentDir);
+  if (!gradleRoot) {
+    void vscode.window.showInformationMessage("No Gradle project was found for this worksheet.");
+    return;
+  }
+
+  const cleared = gradleClasspathCache.clear(gradleRoot, documentDir);
+  output.info(`Gradle classpath cache refreshed for ${gradleRoot}; cleared ${cleared} entr${cleared === 1 ? "y" : "ies"}.`);
+  void vscode.window.setStatusBarMessage("Kotlin Worksheet Gradle classpath cache refreshed", 2500);
+}
+
+function logGradleCacheStatus(
+  output: vscode.LogOutputChannel,
+  logPrefix: string,
+  status: "hit" | "miss" | "invalidated" | "shared" | "disabled",
+): void {
+  switch (status) {
+    case "hit":
+      output.info(`${logPrefix} Gradle classpath cache hit.`);
+      return;
+    case "miss":
+      output.info(`${logPrefix} Gradle classpath cache miss.`);
+      return;
+    case "invalidated":
+      output.info(`${logPrefix} Gradle classpath cache invalidated; resolved fresh classpath.`);
+      return;
+    case "shared":
+      output.info(`${logPrefix} Gradle classpath resolution shared with an active request.`);
+      return;
+    case "disabled":
+      output.info(`${logPrefix} Gradle classpath cache disabled.`);
+      return;
+  }
 }
 
 async function clearActiveWorksheet(

@@ -11,3 +11,4 @@ assets/kotlin-worksheet-icon.png
 coverage/
 .code-review-graph/
 graphify-out/
+test/fixtures/**/bin/

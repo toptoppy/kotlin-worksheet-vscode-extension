@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -15,26 +15,38 @@ import {
 describe("gradle project detection", () => {
   it("finds the nearest Gradle project root", async () => {
     const root = await createTempDir("gradle-root-");
-    const nested = path.join(root, "app", "src");
-    await mkdir(nested, { recursive: true });
-    await writeFile(path.join(root, "build.gradle.kts"), "plugins { kotlin(\"jvm\") version \"2.4.0\" }", "utf8");
+    try {
+      const nested = path.join(root, "app", "src");
+      await mkdir(nested, { recursive: true });
+      await writeFile(path.join(root, "build.gradle.kts"), "plugins { kotlin(\"jvm\") version \"2.4.0\" }", "utf8");
 
-    await expect(locateGradleProjectRoot(nested)).resolves.toBe(root);
+      await expect(locateGradleProjectRoot(nested)).resolves.toBe(root);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("falls back to local mode when no Gradle markers exist", async () => {
     const root = await createTempDir("no-gradle-");
-    await mkdir(path.join(root, "src"), { recursive: true });
+    try {
+      await mkdir(path.join(root, "src"), { recursive: true });
 
-    await expect(detectExecutionMode(path.join(root, "src"), "auto")).resolves.toBe("localKotlinc");
+      await expect(detectExecutionMode(path.join(root, "src"), "auto")).resolves.toBe("localKotlinc");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("selects Gradle mode when a project root is present", async () => {
     const root = await createTempDir("gradle-auto-");
-    await mkdir(path.join(root, "src"), { recursive: true });
-    await writeFile(path.join(root, "settings.gradle.kts"), "rootProject.name = \"sample\"", "utf8");
+    try {
+      await mkdir(path.join(root, "src"), { recursive: true });
+      await writeFile(path.join(root, "settings.gradle.kts"), "rootProject.name = \"sample\"", "utf8");
 
-    await expect(detectExecutionMode(path.join(root, "src"), "auto")).resolves.toBe("gradleClasspath");
+      await expect(detectExecutionMode(path.join(root, "src"), "auto")).resolves.toBe("gradleClasspath");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 
@@ -126,6 +138,36 @@ describe.skipIf(!hasGradle() || !hasKotlinc())("gradle classpath execution", () 
     expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
     expect(result.results).toEqual(new Map([[2, "hello from gradle subproject"]]));
   }, 90000);
+
+  it("runs a worksheet against Arrow Core from Maven Central", async () => {
+    const fixtureRoot = path.resolve("test/fixtures/gradle-arrow");
+    const classpath = await resolveGradleClasspath(fixtureRoot, { timeoutMs: 60000 });
+
+    expect(classpath.success, classpath.stderr).toBe(true);
+    expect(classpath.classpath.length).toBeGreaterThan(0);
+
+    const result = await executeWorksheet(
+      [
+        "import arrow.core.Either",
+        "import arrow.core.Option",
+        "import arrow.core.Some",
+        "import arrow.core.getOrElse",
+        "Either.Right(21).map { it * 2 }.fold({ -1 }) { it }",
+        "Some(21).map { it * 2 }.getOrElse { 0 }",
+      ].join("\n"),
+      {
+        kotlinCommand: "kotlinc",
+        timeoutMs: 20000,
+        classpath: classpath.classpath,
+      },
+    );
+
+    expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
+    expect(result.results).toEqual(new Map([
+      [5, "42"],
+      [6, "42"],
+    ]));
+  }, 120000);
 });
 
 async function createTempDir(prefix: string): Promise<string> {

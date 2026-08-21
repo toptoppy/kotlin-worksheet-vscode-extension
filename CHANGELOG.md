@@ -33,10 +33,30 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Added Run Selection and Run Current Block commands with preceding worksheet
   context and unrelated-result preservation.
 
-### Planned For 0.7.0
+## [0.7.0] - 2026-08-18
 
-- Arrow-kt Gradle fixture and dependency integration coverage.
-- Better Gradle dependency diagnostics, classpath caching, and refresh support.
+### Added
+
+- Added an Arrow Core Gradle fixture using Maven Central and pinned dependency
+  coverage for Kotlin JVM projects.
+- Added Gradle integration coverage for Arrow `Either` and `Option`
+  transformations.
+- Added root-project and nearest-subproject Gradle classpath coverage.
+- Cached successful Gradle classpath resolutions and reused them until Gradle
+  build files or project sources change.
+- Shared concurrent Gradle classpath resolution requests for the same worksheet
+  project so duplicate runs do not launch duplicate Gradle work.
+- Added `Kotlin Worksheet: Refresh Gradle Classpath` to clear cached classpath
+  entries for the active worksheet project.
+- Added `kotlinWorksheet.gradleClasspathCache.enabled` to disable Gradle
+  classpath caching when needed.
+
+### Changed
+
+- Gradle classpath caches now invalidate for source, build, and version-catalog
+  changes, and failed resolutions are not cached.
+- Gradle-backed worksheet runs now log cache hits, misses, invalidations,
+  disabled cache use, and shared in-flight resolutions.
 
 ## [0.6.2] - 2026-08-17
 

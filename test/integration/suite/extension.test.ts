@@ -67,6 +67,7 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     assert.ok(commands.includes("kotlinWorksheet.newWorksheet"));
     assert.ok(commands.includes("kotlinWorksheet.toggleRunOnSave"));
     assert.ok(commands.includes("kotlinWorksheet.toggleRenderMode"));
+    assert.ok(commands.includes("kotlinWorksheet.refreshGradleClasspath"));
     assert.ok(commands.includes("kotlinWorksheet.openSetupGuide"));
     assert.ok(commands.includes("kotlinWorksheet.showOutput"));
     assert.ok(commands.includes("kotlinWorksheet.checkEnvironment"));

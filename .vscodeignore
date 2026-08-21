@@ -1,5 +1,8 @@
 .vscode/**
 .github/**
+.mise.toml
+.superpowers/**
+docs/superpowers/**
 .code-review-graph/**
 graphify-out/**
 .gitignore

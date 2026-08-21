@@ -32,15 +32,31 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Reliable decoration and diagnostic lifecycle across edits and editor visibility changes.
 - Native getting-started walkthrough.
 - Command-level extension-host tests for core success and failure paths.
-- Packaged 0.6.0 development VSIX installation validated in an isolated macOS profile.
-- CI installs and verifies the packaged VSIX in isolated Linux, macOS, and Windows profiles.
 
-## Remaining Release QA
+## Completed Locally For 0.7.0
+
+- `pnpm check` passed locally, including lint, compilation, tests, and packaging.
+- Arrow Core 2.2.3 resolved from Maven Central and executed through the Gradle
+  runtime classpath, covering `Either` and `Option` transformations.
+- Root-project and nearest-subproject Gradle classpath integration tests passed.
+- The local Gradle cache benchmark verified cache hits, disabled caching, source
+  invalidation, dependency-configuration invalidation, and worksheet execution.
+- The packaged 0.7.0 VSIX installed successfully in an isolated local profile.
+
+## Remaining CI
 
 - Confirm the cross-platform worksheet integration and isolated VSIX jobs pass in CI.
+- Confirm the Gradle fixture smoke and integration jobs pass in CI.
+
+## Remaining Manual QA
+
 - Manually verify the walkthrough, status bar text, notification actions, and decoration appearance.
 - Manually verify automatic Gradle fallback in a representative Kotlin Gradle project.
 - Keep CI and docs pinned to `kotlinc-jvm 2.4.0` unless the supported version changes intentionally.
+
+## Remaining Publishing Decisions
+
+- Decide whether to publish 0.7.0 to the Visual Studio Marketplace after CI and manual QA pass.
 - Decide whether to publish to Open VSX in addition to Visual Studio Marketplace.
 
 ## Release Preparation
@@ -49,7 +65,8 @@ This checklist tracks the work needed before publishing or promoting Kotlin Work
 - Run `pnpm check`.
 - Package the VSIX with `pnpm package`.
 - Run `pnpm test:vsix-install` to install and verify the packaged VSIX in an isolated profile.
-- Tag the release after publishing.
+- Commit the release, create and push the matching tag before protected publishing.
+- Confirm tagged CI, then run the protected Marketplace workflow and verify Marketplace/GitHub release metadata.
 
 See `docs/publishing.md` for the detailed Marketplace publish and version update process.
 

@@ -2,7 +2,7 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "publisher": "ws-kts-toppy",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -41,6 +41,7 @@
     "onCommand:kotlinWorksheet.newWorksheet",
     "onCommand:kotlinWorksheet.toggleRunOnSave",
     "onCommand:kotlinWorksheet.toggleRenderMode",
+    "onCommand:kotlinWorksheet.refreshGradleClasspath",
     "onCommand:kotlinWorksheet.checkEnvironment",
     "onCommand:kotlinWorksheet.showOutput",
     "workspaceContains:**/*.worksheet.kts"
@@ -87,6 +88,10 @@
       {
         "command": "kotlinWorksheet.toggleRenderMode",
         "title": "Kotlin Worksheet: Toggle Render Mode"
+      },
+      {
+        "command": "kotlinWorksheet.refreshGradleClasspath",
+        "title": "Kotlin Worksheet: Refresh Gradle Classpath"
       },
       {
         "command": "kotlinWorksheet.checkEnvironment",
@@ -143,19 +148,25 @@
           "description": "How the worksheet execution classpath is resolved.",
           "order": 2
         },
+        "kotlinWorksheet.gradleClasspathCache.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cache successful Gradle classpath resolutions and reuse them until Gradle build files or project sources change.",
+          "order": 5
+        },
         "kotlinWorksheet.timeoutMs": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
           "description": "Maximum worksheet execution time in milliseconds.",
-          "order": 5
+          "order": 6
         },
         "kotlinWorksheet.maxResultLength": {
           "type": "number",
           "default": 500,
           "minimum": 20,
           "description": "Maximum number of characters written for a single inline worksheet result.",
-          "order": 6
+          "order": 7
         }
       }
     },
@@ -281,6 +292,7 @@
     "test:vsix-install": "node test/smoke/vsix-install.mjs",
     "vscode:prepublish": "pnpm compile",
     "package": "vsce package --no-dependencies --allow-missing-repository",
+    "benchmark:gradle-cache": "pnpm compile && node test/benchmark/gradle-cache.mjs",
     "test:integration:compile": "tsc -p tsconfig.integration.json",
     "test:integration": "pnpm compile && pnpm test:integration:compile && node out/test/integration/index.js"
   },
