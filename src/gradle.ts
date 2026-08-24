@@ -17,6 +17,16 @@ export interface GradleClasspathResult {
   startError?: string;
 }
 
+export type GradleFailureKind =
+  | "missingCommand"
+  | "timeout"
+  | "cancelled"
+  | "missingProject"
+  | "unsupportedLayout"
+  | "dependencyResolution"
+  | "emptyClasspath"
+  | "gradleFailure";
+
 export interface GradleResolveOptions {
   timeoutMs: number;
   cancellationSignal?: AbortSignal;
@@ -26,6 +36,62 @@ export interface GradleResolveOptions {
 export interface GradleCommand {
   command: string;
   args: string[];
+}
+
+type GradleFailureInput = Pick<
+  GradleClasspathResult,
+  "classpath" | "stderr" | "timedOut" | "cancelled" | "startError"
+>;
+
+export interface GradleFailureReport {
+  kind: GradleFailureKind;
+  detail: string;
+  reason: string;
+  logMessage: string;
+}
+
+export function classifyGradleFailure(
+  result: GradleFailureInput,
+): GradleFailureKind {
+  if (result.timedOut) {
+    return "timeout";
+  }
+  if (result.cancelled) {
+    return "cancelled";
+  }
+  if (result.startError) {
+    return result.startError.includes("No Gradle project") ? "missingProject" : "missingCommand";
+  }
+
+  const stderr = result.stderr;
+  if (stderr.includes("No Gradle project contains")) {
+    return "missingProject";
+  }
+  if (
+    stderr.includes("No sourceSets extension") ||
+    stderr.includes("No main source set") ||
+    /Could not get (?:unknown )?property ['"]runtimeClasspath['"]/i.test(stderr) ||
+    /Could not find method runtimeClasspath\s*\(/i.test(stderr) ||
+    /(?:unknown property|no such property|does not exist|not found|missing)\W{0,40}runtimeClasspath/i.test(stderr) ||
+    /runtimeClasspath\W{0,40}(?:unknown|does not exist|not found|missing)/i.test(stderr)
+  ) {
+    return "unsupportedLayout";
+  }
+
+  const hasDependencyContext = /\b(?:dependenc(?:y|ies)|resource|repository|repositories|module|artifact|configuration)\b/i.test(stderr);
+  const hasModuleCoordinate = /\b[\w.-]+:[\w.-]+:[\w.+-]+\b/.test(stderr);
+  const isDependencyFailure =
+    /Could not resolve all files/i.test(stderr) ||
+    /Could not get resource/i.test(stderr) ||
+    /(?:Could not (?:find|resolve)|(?:Failed|Unable) to resolve)\b/i.test(stderr)
+      && (hasDependencyContext || hasModuleCoordinate);
+  if (isDependencyFailure) {
+    return "dependencyResolution";
+  }
+  if (result.classpath.length === 0) {
+    return "emptyClasspath";
+  }
+  return "gradleFailure";
 }
 
 export function describeGradleFailure(result: Pick<GradleClasspathResult, "classpath" | "stderr" | "timedOut" | "startError">): string {
@@ -44,6 +110,51 @@ export function describeGradleFailure(result: Pick<GradleClasspathResult, "class
     return "no classpath entries were resolved";
   }
   return "unknown error";
+}
+
+export function formatGradleFailureLog(
+  logPrefix: string,
+  kind: GradleFailureKind,
+  detail: string,
+  rawDetail?: string,
+): string {
+  const conciseLog = `${logPrefix} Gradle failure kind=${kind}; detail=${detail}`;
+  return rawDetail && rawDetail !== detail
+    ? `${conciseLog}\n${logPrefix} Gradle raw detail:\n${rawDetail}`
+    : conciseLog;
+}
+
+export function describeGradleFailureForUser(kind: GradleFailureKind, detail?: string): string {
+  const descriptions: Record<GradleFailureKind, string> = {
+    missingCommand: "Install Gradle or add a Gradle wrapper to the project.",
+    timeout: "Gradle resolution timed out. Increase kotlinWorksheet.timeoutMs or inspect Gradle performance.",
+    cancelled: "Gradle resolution was cancelled.",
+    missingProject: "No Gradle project contains the worksheet directory.",
+    unsupportedLayout: "Expose sourceSets.main.runtimeClasspath in the Gradle project or use local Kotlin.",
+    dependencyResolution: "Check dependencies, repositories, or network access.",
+    emptyClasspath: "Gradle resolved an empty classpath. Inspect the full Gradle Output log.",
+    gradleFailure: "Gradle resolution failed. Inspect the full Gradle Output log.",
+  };
+
+  if (kind !== "gradleFailure") {
+    return descriptions[kind];
+  }
+
+  const firstDetailLine = detail?.trim().split(/\r?\n/, 1)[0];
+  return firstDetailLine ? `${descriptions[kind]} Detail: ${firstDetailLine}` : descriptions[kind];
+}
+
+export function buildGradleFailureReport(logPrefix: string, result: GradleFailureInput): GradleFailureReport {
+  const kind = classifyGradleFailure(result);
+  const detail = describeGradleFailure(result);
+  const reason = describeGradleFailureForUser(kind, detail);
+  const rawDetail = result.stderr || result.startError;
+  return {
+    kind,
+    detail,
+    reason,
+    logMessage: formatGradleFailureLog(logPrefix, kind, detail, rawDetail),
+  };
 }
 
 export async function locateGradleProjectRoot(startDir: string): Promise<string | undefined> {

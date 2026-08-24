@@ -72,7 +72,19 @@ editor. Run `Kotlin Worksheet: Toggle Render Mode` to switch modes.
 - If `kotlinc -version` fails, install Kotlin or configure
   `kotlinWorksheet.kotlinCommand` with an absolute path.
 - If automatic Gradle resolution fails, inspect `Kotlin Worksheet: Show Log`;
-  the extension reports the fallback reason and continues with local Kotlin.
-- If explicit `gradleClasspath` mode fails, verify the wrapper, the selected
-  subproject, and its JVM `sourceSets.main.runtimeClasspath`.
+  the notification shows the categorized, reason-specific recovery reason, then
+  continues with local Kotlin. The Kotlin Worksheet Output log contains
+  `kind=<...>` plus the raw Gradle detail.
+- If explicit `gradleClasspath` mode fails, the extension reports an error
+  with a reason-specific recovery message instead of falling back. The Kotlin
+  Worksheet Output log contains `kind=<...>` plus the raw Gradle detail. Verify
+  the wrapper, the selected subproject, and its JVM
+  `sourceSets.main.runtimeClasspath`.
+- Android, Kotlin Multiplatform, and custom Gradle source-set layouts are not
+  supported; use a JVM layout or `localKotlinc`.
+- For dependency-resolution failures, check repositories, dependency
+  declarations, and network access. For timeouts, increase
+  `kotlinWorksheet.timeoutMs` and inspect Gradle performance.
+- For an empty or generic failure, open `Kotlin Worksheet: Show Log` for the
+  full Gradle output.
 - If execution is disabled, trust the workspace before running local code.

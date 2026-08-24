@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -46,6 +46,26 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     await vscode.window.showTextDocument(document);
     await sleep(100);
     return document;
+  }
+
+  async function createUnsupportedGradleProject(): Promise<void> {
+    await writeFile(path.join(tempDir, "build.gradle"), "// Gradle marker without a sourceSets extension\n", "utf8");
+    if (process.platform === "win32") {
+      await writeFile(
+        path.join(tempDir, "gradlew.bat"),
+        "@echo No sourceSets extension found on project ':'. 1>&2\r\n@exit /b 1\r\n",
+        "utf8",
+      );
+      return;
+    }
+
+    const wrapper = path.join(tempDir, "gradlew");
+    await writeFile(
+      wrapper,
+      "#!/bin/sh\nprintf '%s\\n' \"No sourceSets extension found on project ':'.\" >&2\nexit 1\n",
+      "utf8",
+    );
+    await chmod(wrapper, 0o755);
   }
 
   test("commands are registered without a duplicate rerun command", async () => {
@@ -248,6 +268,28 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
 
     assert.strictEqual(document.getText(), "val x = 1");
   });
+
+  test("explicit Gradle failure leaves the worksheet unchanged", async () => {
+    await createUnsupportedGradleProject();
+    const document = await openDocument("val x = 1", "gradle-explicit-failure.worksheet.kts");
+    await updateSetting("executionMode", "gradleClasspath", document.uri);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+
+    assert.strictEqual(document.getText(), "val x = 1");
+  }).timeout(processTestTimeout);
+
+  (hasKotlinc ? test : test.skip)("automatic Gradle failure falls back to local Kotlin", async () => {
+    await createUnsupportedGradleProject();
+    const document = await openDocument("val x = 40\nx + 2", "gradle-automatic-fallback.worksheet.kts");
+    await configureExecution(document.uri);
+    await updateSetting("executionMode", "auto", document.uri);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    await waitFor(() => document.getText().includes("x + 2 // => 42"));
+
+    assert.strictEqual(document.getText(), "val x = 40 // => 40\nx + 2 // => 42");
+  }).timeout(30000);
 
   (hasKotlinc ? test : test.skip)("compiler diagnostics clear after a source edit", async () => {
     const document = await openDocument("val x = missing", "diagnostics.worksheet.kts");

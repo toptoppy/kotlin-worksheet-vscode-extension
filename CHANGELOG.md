@@ -12,6 +12,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
   terminal states and duplicate force-kill timers.
 - Made Gradle temporary directories collision-safe and cancellation-aware.
 - Prevented stale worksheet results from applying after edits or document close.
+- Gradle failures now identify the failure category and provide recovery
+  guidance for automatic fallback warnings and explicit Gradle errors.
 
 ### Planned For 0.6.0
 

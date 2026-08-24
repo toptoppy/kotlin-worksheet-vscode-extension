@@ -36,14 +36,14 @@ JVM Gradle classpath integration.
 - [x] Add an Arrow-kt Gradle fixture using Maven Central.
 - [x] Test `Either`, `Option`, and functional transformations.
 - [x] Verify dependencies from root projects and subprojects.
-- [ ] Improve missing dependency diagnostics (deferred beyond 0.7.0).
+- [x] Improve missing dependency diagnostics.
 - [x] Cache Gradle classpaths between runs.
 - [x] Add a classpath refresh command.
 - [ ] Improve dependency and subproject resolution (deferred beyond 0.7.0).
 - [ ] Support Android, Kotlin Multiplatform, and custom Gradle layouts
   (deferred beyond 0.7.0).
 - [ ] Support more common JVM Gradle layouts (deferred beyond 0.7.0).
-- [ ] Improve Gradle fallback diagnostics (deferred beyond 0.7.0).
+- [x] Improve Gradle fallback diagnostics.
 - [ ] Test Gradle integration across macOS, Linux, and Windows (pending tagged CI verification).
 - [x] Add Arrow-kt setup and dependency examples in the Gradle fixture.
 

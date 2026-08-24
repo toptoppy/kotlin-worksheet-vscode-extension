@@ -20,9 +20,11 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 | Gradle | A wrapper or `gradle` executable in standard JVM projects |
 | Operating systems | macOS, Linux, and Windows |
 
-Gradle classpath execution currently targets projects that expose a JVM
+Gradle classpath mode requires a JVM Gradle project that exposes
 `sourceSets.main.runtimeClasspath`. Android, Kotlin Multiplatform, and custom
-Gradle source-set layouts are not part of the supported baseline yet.
+Gradle source-set layouts remain unsupported. In automatic mode, a Gradle
+failure falls back to local Kotlin and shows the categorized reason. Explicit
+`gradleClasspath` mode reports an error instead and does not fall back.
 
 ## Install The Extension
 
@@ -227,9 +229,21 @@ unchanged repeated Gradle runs should avoid repeated classpath resolution.
 
 ## Logs And Recovery
 
-Run `Kotlin Worksheet: Show Log` to open chronological execution logs. Each run records its worksheet, requested and resolved execution mode, safe invocation summary, duration, exit code, and terminal status.
+Run `Kotlin Worksheet: Show Log` to open chronological execution logs. Each run records its worksheet, requested and resolved execution mode, safe invocation summary, duration, exit code, and terminal status. Gradle failures include a category, the failure detail, and recovery guidance.
 
-Failure notifications provide direct actions for settings, setup guidance, Problems, workspace trust, Gradle fallback, and logs. In automatic mode, Gradle fallback is reported instead of happening silently.
+Failure notifications provide direct actions for settings, setup guidance, Problems, workspace trust, Gradle fallback, and logs. In automatic mode, Gradle fallback is reported instead of happening silently. In explicit `gradleClasspath` mode, the run stops with an error and offers the log and local-Kotlin recovery actions.
+
+Use this recovery table for the common Gradle failure categories:
+
+| Failure category | Recovery |
+| --- | --- |
+| Missing Gradle command | Install Gradle or add a project wrapper. |
+| Missing project | Open the worksheet inside a Gradle project, or use local Kotlin. |
+| Dependency resolution | Check repositories, dependency declarations, and network access. |
+| Unsupported layout | Use a JVM `sourceSets.main.runtimeClasspath` layout or local Kotlin. |
+| Timeout | Increase `kotlinWorksheet.timeoutMs` and inspect Gradle performance. |
+| Cancelled | Run the worksheet again if the cancellation was unintentional. |
+| Empty/generic failure | Open `Kotlin Worksheet: Show Log` for full Gradle output. |
 
 Use `Kotlin Worksheet: Check Environment` before the first run to check workspace trust, the configured Kotlin command and version, execution mode, and Gradle availability.
 
@@ -310,9 +324,9 @@ worksheet source lines.
 
 Choose how worksheets are executed:
 
-- `auto`: use Gradle classpath when a standard Gradle project is detected, otherwise fall back to local `kotlinc`
+- `auto`: use Gradle classpath when a standard Gradle project is detected, then fall back to local `kotlinc` with a visible reason if resolution fails
 - `localKotlinc`: always use local `kotlinc -script`
-- `gradleClasspath`: require a Gradle project and resolve its runtime classpath before running the worksheet
+- `gradleClasspath`: require a Gradle project and resolve its runtime classpath before running the worksheet; report an error instead of falling back if resolution fails
 
 Set it with:
 

@@ -3,9 +3,10 @@ import { executeWorksheet } from "./executor.js";
 import { checkEnvironment, type EnvironmentCheckResult } from "./environment.js";
 import { GradleClasspathCache } from "./gradle-cache.js";
 import {
-  describeGradleFailure,
+  buildGradleFailureReport,
   locateGradleProjectRoot,
   type ExecutionMode,
+  type GradleFailureKind,
 } from "./gradle.js";
 import {
   WORKSHEET_SUFFIX,
@@ -42,7 +43,14 @@ type RecoveryAction =
   | "Manage Workspace Trust"
   | "Use Local Kotlin";
 
-class GradleResolutionError extends Error {}
+class GradleResolutionError extends Error {
+  constructor(
+    readonly kind: GradleFailureKind,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Kotlin Worksheet", { log: true });
@@ -329,6 +337,11 @@ async function runWorksheetDocument(
               logGradleCacheStatus(output, logPrefix, gradleResolution.cacheStatus);
 
               if (run.cancellationSignal.aborted) {
+                const report = buildGradleFailureReport(logPrefix, {
+                  ...gradleResolution,
+                  cancelled: true,
+                });
+                output.warn(report.logMessage);
                 throw new Error("Worksheet execution cancelled.");
               }
 
@@ -337,25 +350,42 @@ async function runWorksheetDocument(
                 output.info(`${logPrefix} Gradle classpath: ${classpath.length} entries from ${gradleRoot}`);
                 output.debug(`${logPrefix} Gradle classpath entries: ${classpath.join(path.delimiter)}`);
               } else if (executionMode === "gradleClasspath") {
-                throw new GradleResolutionError(describeGradleFailure(gradleResolution));
+                const report = buildGradleFailureReport(logPrefix, gradleResolution);
+                output.warn(report.logMessage);
+                throw new GradleResolutionError(report.kind, report.reason);
               } else {
-                const reason = describeGradleFailure(gradleResolution);
+                const report = buildGradleFailureReport(logPrefix, gradleResolution);
+                output.warn(report.logMessage);
                 worksheetRuns.setExecutionMode(uri, "localKotlinc");
                 output.warn(
-                  `${logPrefix} Gradle classpath resolution failed (${reason}); continuing with local Kotlin.`,
+                  `${logPrefix} Gradle classpath resolution failed (${report.reason}); continuing with local Kotlin.`,
                 );
-                showGradleFallbackWarning(output, document.uri, gradleRoot, reason);
+                showGradleFallbackWarning(output, document.uri, gradleRoot, report.reason);
               }
             } else if (executionMode === "gradleClasspath") {
-              throw new GradleResolutionError("No Gradle project was found for this worksheet.");
+              const report = buildGradleFailureReport(logPrefix, {
+                classpath: [],
+                stderr: "No Gradle project contains the worksheet directory.",
+                timedOut: false,
+                cancelled: false,
+              });
+              output.warn(report.logMessage);
+              throw new GradleResolutionError(report.kind, report.reason);
             } else {
+              const report = buildGradleFailureReport(logPrefix, {
+                classpath: [],
+                stderr: "No Gradle project contains the worksheet directory.",
+                timedOut: false,
+                cancelled: false,
+              });
               worksheetRuns.setExecutionMode(uri, "localKotlinc");
+              output.warn(report.logMessage);
               output.warn(`${logPrefix} Gradle project was no longer available; continuing with local Kotlin.`);
               showGradleFallbackWarning(
                 output,
                 document.uri,
                 documentDir,
-                "the Gradle project was no longer available",
+                report.reason,
               );
             }
           }
