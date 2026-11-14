@@ -148,6 +148,7 @@ export function instrumentWorksheet(
 
   let blockDepth = 0;
   let previousContinues = false;
+  let pendingAnnotationStart: number | undefined;
   let pendingDeclaration: { expression: string; sourceLine: number; text: string[] } | undefined;
   let pendingFunction: { sourceLine: number; signature: string } | undefined;
   let pendingExpression: { sourceLine: number } | undefined;
@@ -163,11 +164,30 @@ export function instrumentWorksheet(
       blockDepth === 0 &&
       !previousContinues &&
       isExecutableTopLevelLine(trimmed);
-    const functionSignature = statementStart && isFunctionDeclaration(trimmed)
-      ? functionSignatures.get(sourceLine)
-      : undefined;
-    const declarationExpression = statementStart ? declarationExpressions.get(sourceLine) : undefined;
-    const printableExpression = statementStart
+
+    if (statementStart && isPureAnnotationOrContextLine(trimmed)) {
+      pendingAnnotationStart = sourceLine;
+    }
+
+    let isCodeStart = false;
+    if (pendingAnnotationStart !== undefined) {
+      const statementSoFar = lines.slice(pendingAnnotationStart - 1, sourceLine).map((l) => l.trimmed).join(" ");
+      const isAnnotationInProgress = stripLeadingAnnotationsAndContext(statementSoFar).length === 0;
+      if (!isAnnotationInProgress && !isPureAnnotationOrContextLine(trimmed) && trimmed.length > 0) {
+        isCodeStart = true;
+        pendingAnnotationStart = undefined;
+      }
+    } else if (statementStart && !isPureAnnotationOrContextLine(trimmed)) {
+      isCodeStart = true;
+    }
+
+    if (pendingDeclaration || pendingFunction || pendingExpression) {
+      isCodeStart = false;
+    }
+
+    const functionSignature = isCodeStart ? functionSignatures.get(sourceLine) : undefined;
+    const declarationExpression = isCodeStart ? declarationExpressions.get(sourceLine) : undefined;
+    const printableExpression = isCodeStart
       && !declarationExpression
       && !functionSignature
       && isPrintableExpressionLine(line.text, trimmed);
@@ -202,7 +222,17 @@ export function instrumentWorksheet(
     }
 
     const nextBlockDepth = line.delimiterDepthAfter;
-    const nextContinues = line.lexicallyContinued || lineContinues(trimmed, nextBlockDepth);
+    let nextContinues = line.lexicallyContinued || lineContinues(trimmed, nextBlockDepth);
+
+    if (pendingAnnotationStart !== undefined && nextBlockDepth === 0 && !nextContinues) {
+      const statementSoFar = lines
+        .slice(pendingAnnotationStart - 1, sourceLine)
+        .map((l) => l.trimmed)
+        .join(" ");
+      if (stripLeadingAnnotationsAndContext(statementSoFar).length === 0) {
+        nextContinues = true;
+      }
+    }
 
     if (pendingExpression && nextBlockDepth === 0 && !nextContinues) {
       if (isResultLine(pendingExpression.sourceLine, options.resultRange)) {
@@ -413,7 +443,9 @@ function isExecutableTopLevelLine(trimmed: string): boolean {
   return true;
 }
 
-export type WorksheetStatement = WorksheetRange;
+export interface WorksheetStatement extends WorksheetRange {
+  declarationLine?: number;
+}
 
 export function findWorksheetStatements(textOrLines: string | string[]): WorksheetStatement[] {
   const lines = Array.isArray(textOrLines)
@@ -431,19 +463,20 @@ function collectDeclarationResultExpressions(lines: WorksheetLine[]): Map<number
       .join(" ");
     const expression = parseDeclarationResultExpression(declaration);
     if (expression) {
-      expressions.set(statement.startLine, expression);
+      expressions.set(statement.declarationLine ?? statement.startLine, expression);
     }
   }
   return expressions;
 }
 
 function parseDeclarationResultExpression(declaration: string): string | undefined {
-  const simpleName = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(declaration)?.[1];
+  const stripped = stripLeadingAnnotationsAndContext(declaration);
+  const simpleName = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(stripped)?.[1];
   if (simpleName) {
     return simpleName;
   }
 
-  const destructuredNames = /^(?:val|var)\s*\(([\s\S]*?)\)\s*(?::[^=]+)?=/.exec(declaration)?.[1]
+  const destructuredNames = /^(?:val|var)\s*\(([\s\S]*?)\)\s*(?::[^=]+)?=/.exec(stripped)?.[1]
     ?.split(",")
     .map((name) => name.trim())
     .filter((name) => name !== "_");
@@ -457,6 +490,7 @@ function parseDeclarationResultExpression(declaration: string): string | undefin
 function findWorksheetStatementsFromLines(lines: WorksheetLine[]): WorksheetStatement[] {
   const statements: WorksheetStatement[] = [];
   let startLine: number | undefined;
+  let declarationLine: number | undefined;
   let blockDepth = 0;
   let previousContinues = false;
 
@@ -466,15 +500,39 @@ function findWorksheetStatementsFromLines(lines: WorksheetLine[]): WorksheetStat
       && !previousContinues
       && isExecutableTopLevelLine(line.trimmed);
 
+    const statementSoFar = startLine !== undefined
+      ? lines.slice(startLine - 1, line.sourceLine).map((l) => l.trimmed).join(" ")
+      : line.trimmed;
+    const isAnnotationInProgress = stripLeadingAnnotationsAndContext(statementSoFar).length === 0;
+
     if (statementStart) {
       startLine = line.sourceLine;
+      declarationLine = isAnnotationInProgress ? undefined : line.sourceLine;
+    } else if (startLine !== undefined && declarationLine === undefined && !isAnnotationInProgress && line.trimmed) {
+      declarationLine = line.sourceLine;
     }
 
     const nextBlockDepth = line.delimiterDepthAfter;
-    const nextContinues = line.lexicallyContinued || lineContinues(line.trimmed, nextBlockDepth);
+    let nextContinues = line.lexicallyContinued || lineContinues(line.trimmed, nextBlockDepth);
+
     if (startLine !== undefined && nextBlockDepth === 0 && !nextContinues) {
-      statements.push({ startLine, endLine: line.sourceLine });
+      const statementSoFar = lines
+        .slice(startLine - 1, line.sourceLine)
+        .map((l) => l.trimmed)
+        .join(" ");
+      if (stripLeadingAnnotationsAndContext(statementSoFar).length === 0) {
+        nextContinues = true;
+      }
+    }
+
+    if (startLine !== undefined && nextBlockDepth === 0 && !nextContinues) {
+      statements.push({
+        startLine,
+        declarationLine: declarationLine ?? startLine,
+        endLine: line.sourceLine,
+      });
       startLine = undefined;
+      declarationLine = undefined;
     }
 
     blockDepth = nextBlockDepth;
@@ -482,10 +540,87 @@ function findWorksheetStatementsFromLines(lines: WorksheetLine[]): WorksheetStat
   });
 
   if (startLine !== undefined) {
-    statements.push({ startLine, endLine: lines.length });
+    statements.push({
+      startLine,
+      declarationLine: declarationLine ?? startLine,
+      endLine: lines.length,
+    });
   }
 
   return statements;
+}
+
+export function stripLeadingAnnotationsAndContext(text: string): string {
+  let remaining = text.trim();
+  while (remaining.length > 0) {
+    if (remaining.startsWith("@file:")) {
+      break;
+    }
+    if (remaining.startsWith("@")) {
+      const match = /^@(?:[A-Za-z_][A-Za-z0-9_]*:)?(?:[A-Za-z_][A-Za-z0-9_.]*)/.exec(remaining);
+      if (!match) {
+        break;
+      }
+      remaining = remaining.slice(match[0].length).trimStart();
+      if (remaining.startsWith("(")) {
+        const endParen = findMatchingDelimiter(remaining, 0, "(", ")");
+        if (endParen >= 0) {
+          remaining = remaining.slice(endParen + 1).trimStart();
+          continue;
+        }
+        return "";
+      }
+      continue;
+    }
+    if (/^context\s*\(/.test(remaining)) {
+      const parenIndex = remaining.indexOf("(");
+      const endParen = findMatchingDelimiter(remaining, parenIndex, "(", ")");
+      if (endParen >= 0) {
+        remaining = remaining.slice(endParen + 1).trimStart();
+        continue;
+      }
+      return "";
+    }
+    break;
+  }
+  return remaining;
+}
+
+export function stripLeadingAnnotations(text: string): string {
+  let remaining = text.trim();
+  while (remaining.length > 0) {
+    if (remaining.startsWith("@file:")) {
+      break;
+    }
+    if (remaining.startsWith("@")) {
+      const match = /^@(?:[A-Za-z_][A-Za-z0-9_]*:)?(?:[A-Za-z_][A-Za-z0-9_.]*)/.exec(remaining);
+      if (!match) {
+        break;
+      }
+      remaining = remaining.slice(match[0].length).trimStart();
+      if (remaining.startsWith("(")) {
+        const endParen = findMatchingDelimiter(remaining, 0, "(", ")");
+        if (endParen >= 0) {
+          remaining = remaining.slice(endParen + 1).trimStart();
+          continue;
+        }
+        return "";
+      }
+      continue;
+    }
+    break;
+  }
+  return remaining;
+}
+
+export function isPureAnnotationOrContextLine(trimmed: string): boolean {
+  if (!trimmed || trimmed.startsWith("@file:")) {
+    return false;
+  }
+  if (!trimmed.startsWith("@") && !/^context\s*\(/.test(trimmed)) {
+    return false;
+  }
+  return stripLeadingAnnotationsAndContext(trimmed).length === 0;
 }
 
 interface FunctionContext {
@@ -516,7 +651,8 @@ function collectFunctionContext(lines: WorksheetLine[]): FunctionContext {
       .slice(statement.startLine - 1, statement.endLine)
       .map((line) => line.trimmed)
       .join(" ");
-    const name = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(declaration)?.[1];
+    const stripped = stripLeadingAnnotationsAndContext(declaration);
+    const name = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(stripped)?.[1];
     if (!name) {
       continue;
     }
@@ -544,18 +680,17 @@ function collectFunctionTypes(lines: WorksheetLine[]): Map<number, string> {
   const statements = findWorksheetStatementsFromLines(lines);
 
   for (const statement of statements) {
-    const firstLine = lines[statement.startLine - 1];
-    if (!firstLine || !isFunctionDeclaration(firstLine.trimmed)) {
-      continue;
-    }
-
     const declaration = lines
       .slice(statement.startLine - 1, statement.endLine)
       .map((line) => line.trimmed)
       .join(" ");
+    if (!isFunctionDeclaration(declaration)) {
+      continue;
+    }
+
     const functionType = parseFunctionType(declaration);
     if (functionType) {
-      functionTypes.set(statement.startLine, functionType);
+      functionTypes.set(statement.declarationLine ?? statement.startLine, functionType);
     }
   }
 
@@ -565,18 +700,17 @@ function collectFunctionTypes(lines: WorksheetLine[]): Map<number, string> {
 function collectFunctionSignatures(lines: WorksheetLine[]): Map<number, string> {
   const signatures = new Map<number, string>();
   for (const statement of findWorksheetStatementsFromLines(lines)) {
-    const firstLine = lines[statement.startLine - 1];
-    if (!firstLine || !isFunctionDeclaration(firstLine.trimmed)) {
-      continue;
-    }
-
     const declaration = lines
       .slice(statement.startLine - 1, statement.endLine)
       .map((line) => line.trimmed)
       .join(" ");
+    if (!isFunctionDeclaration(declaration)) {
+      continue;
+    }
+
     const signature = parseFunctionSignature(declaration);
     if (signature) {
-      signatures.set(statement.startLine, signature);
+      signatures.set(statement.declarationLine ?? statement.startLine, signature);
     }
   }
   return signatures;
@@ -585,7 +719,16 @@ function collectFunctionSignatures(lines: WorksheetLine[]): Map<number, string> 
 function collectFunctionNames(lines: WorksheetLine[], functionTypes: Map<number, string>): Map<string, string> {
   const names = new Map<string, string>();
   for (const [line, type] of functionTypes) {
-    const name = parseFunctionName(lines[line - 1]?.trimmed);
+    let text = lines[line - 1]?.trimmed;
+    if (text && !text.includes("fun")) {
+      for (let i = line; i < lines.length; i += 1) {
+        if (lines[i].trimmed.includes("fun")) {
+          text = `${text} ${lines[i].trimmed}`;
+          break;
+        }
+      }
+    }
+    const name = parseFunctionName(text);
     if (name) {
       names.set(name, type);
     }
@@ -644,13 +787,14 @@ function parseFunctionType(declaration: string): string | undefined {
 }
 
 function parseFunctionSignature(declaration: string): string | undefined {
-  const funIndex = declaration.search(/\bfun\b/);
+  const stripped = stripLeadingAnnotations(declaration);
+  const funIndex = stripped.search(/\bfun\b/);
   if (funIndex < 0) {
     return undefined;
   }
 
-  const prefix = declaration.slice(0, funIndex + 3);
-  const functionText = declaration.slice(funIndex + 3).trim();
+  const prefix = stripped.slice(0, funIndex + 3);
+  const functionText = stripped.slice(funIndex + 3).trim();
   const bodyStart = findTopLevelBodyStart(functionText);
   const signature = (bodyStart >= 0 ? functionText.slice(0, bodyStart) : functionText)
     .replace(/\s+/g, " ")
@@ -841,7 +985,8 @@ function collectClassMetadata(lines: WorksheetLine[]): Pick<
 }
 
 function isFunctionDeclaration(text: string): boolean {
-  return /^(?:(?:public|private|protected|internal|inline|infix|operator|tailrec|external|suspend|expect|actual|override|open|final)\s+)*fun\s+(?!interface\b)/.test(text.trim());
+  const stripped = stripLeadingAnnotationsAndContext(text);
+  return /^(?:(?:public|private|protected|internal|inline|infix|operator|tailrec|external|suspend|expect|actual|override|open|final)\s+)*fun\s+(?!interface\b)/.test(stripped);
 }
 
 function parseFunctionName(text: string | undefined): string | undefined {
@@ -1439,6 +1584,14 @@ function scanKotlinLine(line: string, state: LexicalState, initialDepth: number)
 }
 
 function isPrintableExpressionLine(line: string, trimmed: string): boolean {
+  if (!trimmed || trimmed.startsWith("}") || trimmed.startsWith(")") || trimmed.startsWith("]")) {
+    return false;
+  }
+
+  if (isPureAnnotationOrContextLine(trimmed)) {
+    return false;
+  }
+
   if (isNonExecutableDeclaration(trimmed)) {
     return false;
   }
@@ -1455,9 +1608,10 @@ function isPrintableExpressionLine(line: string, trimmed: string): boolean {
 }
 
 function isNonExecutableDeclaration(trimmed: string): boolean {
-  return isFunctionDeclaration(trimmed)
-    || /^(?:(?:public|private|protected|internal|sealed|data|enum|annotation)\s+)*(?:fun\s+interface|class|object|interface|enum|typealias|annotation)\b/.test(trimmed)
-    || /^(?:val|var)\b/.test(trimmed);
+  const stripped = stripLeadingAnnotationsAndContext(trimmed);
+  return isFunctionDeclaration(stripped)
+    || /^(?:(?:public|private|protected|internal|sealed|data|enum|annotation)\s+)*(?:fun\s+interface|class|object|interface|enum|typealias|annotation)\b/.test(stripped)
+    || /^(?:val|var)\b/.test(stripped);
 }
 
 function pushDeclarationResult(
@@ -1573,6 +1727,10 @@ function pushStaticResult(
 function lineContinues(trimmed: string, blockDepth: number): boolean {
   if (!trimmed || blockDepth > 0) {
     return blockDepth > 0;
+  }
+
+  if (isPureAnnotationOrContextLine(trimmed)) {
+    return true;
   }
 
   return /[({[,:=+\-*/%&|?.]$/.test(trimmed) || trimmed.endsWith("->");

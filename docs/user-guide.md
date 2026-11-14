@@ -18,7 +18,7 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 | VS Code | 1.100 or newer |
 | Kotlin compiler | `kotlinc-jvm 2.4.0` for the current release line |
 | Build tools | Gradle wrapper/executable or Maven (`pom.xml` / `mvnw`) in standard JVM projects |
-| Daemon Mode | Persistent warm background JVM worker for sub-100ms execution |
+| Daemon Mode | Persistent warm background JVM worker for ~130–210 ms execution (13–18x speedup) |
 | Operating systems | macOS, Linux, and Windows |
 
 Gradle and Maven classpath modes require a standard JVM project. Android, Kotlin Multiplatform, and custom
@@ -42,7 +42,7 @@ Use this path for unreleased builds or pilot testing.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.9.0.vsix
+   kotlin-worksheet-1.0.0.vsix
    ```
 
 2. Open VS Code.
@@ -53,7 +53,7 @@ Use this path for unreleased builds or pilot testing.
    Extensions: Install from VSIX...
    ```
 
-5. Select `kotlin-worksheet-0.7.0.vsix`.
+5. Select `kotlin-worksheet-1.0.0.vsix`.
 6. Reload VS Code if prompted.
 
 ### From Source

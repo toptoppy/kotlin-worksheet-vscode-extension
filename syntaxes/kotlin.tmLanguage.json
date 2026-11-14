@@ -70,7 +70,7 @@
       "patterns": [
         {
           "name": "meta.template.expression.kotlin",
-          "begin": "\\$\\{",
+          "begin": "\\${1,}\\{",
           "end": "\\}",
           "beginCaptures": {
             "0": { "name": "punctuation.section.embedded.begin.kotlin" }
@@ -84,7 +84,7 @@
         },
         {
           "name": "variable.other.readwrite.kotlin",
-          "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
+          "match": "\\${1,}[a-zA-Z_][a-zA-Z0-9_]*"
         }
       ]
     },
@@ -123,7 +123,7 @@
         },
         {
           "name": "storage.modifier.kotlin",
-          "match": "\\b(abstract|final|open|override|sealed|data|inline|noinline|crossinline|reified|external|suspend|tailrec|operator|infix|const|lateinit|vararg|annotation|inner|value|expect|actual|public|private|protected|internal)\\b"
+          "match": "\\b(abstract|final|open|override|sealed|data|inline|noinline|crossinline|reified|external|suspend|tailrec|operator|infix|const|lateinit|vararg|annotation|inner|value|expect|actual|public|private|protected|internal|context)\\b"
         }
       ]
     },

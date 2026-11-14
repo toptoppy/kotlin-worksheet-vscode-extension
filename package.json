@@ -2,7 +2,7 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts and .worksheet.kt files and write inline results.",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "publisher": "ws-kts-toppy",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -378,6 +378,7 @@
     "vscode:prepublish": "pnpm compile",
     "package": "vsce package --no-dependencies --allow-missing-repository",
     "benchmark:gradle-cache": "pnpm compile && node test/benchmark/gradle-cache.mjs",
+    "benchmark:daemon": "pnpm compile && node test/benchmark/daemon-latency.mjs",
     "test:integration:compile": "tsc -p tsconfig.integration.json",
     "test:integration": "pnpm compile && pnpm test:integration:compile && node out/test/integration/index.js"
   },

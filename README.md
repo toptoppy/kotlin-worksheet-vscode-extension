@@ -1,15 +1,16 @@
 # Kotlin Worksheet
 
-Evaluate Kotlin worksheet files in VS Code.
+Evaluate Kotlin worksheet files in VS Code, VSCodium, and Cursor.
 
-[Install from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet)
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/ws-kts-toppy.kotlin-worksheet?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet)
+[![Open VSX](https://img.shields.io/open-vsx/v/ws-kts-toppy/kotlin-worksheet?label=Open%20VSX)](https://open-vsx.org/extension/ws-kts-toppy/kotlin-worksheet)
 
 Files ending in `.worksheet.kts` or `.worksheet.kt` can be run with `Kotlin Worksheet: Run`. Use
 `Run Selection` or `Run Current Block` to evaluate focused code without
 disturbing unrelated results. Hover over any evaluated expression to preview
 its result, inspect large/truncated outputs in a side-by-side tab, or copy the
 result to the clipboard. Run-on-save is available as an optional setting.
-A persistent compiler daemon ensures warm runs execute in milliseconds (<100ms).
+A persistent compiler daemon ensures warm runs execute interactively in milliseconds (~130–210 ms median latency, up to 18x faster than cold runs).
 Standalone worksheets can dynamically pull dependencies from Maven Central via `@file:DependsOn`.
 
 ```kotlin
@@ -20,7 +21,7 @@ println("hello") // => hello
 
 ## Requirements
 
-- VS Code 1.100 or newer
+- VS Code, VSCodium, or Cursor (1.100 or newer)
 - A local Kotlin compiler on PATH, or configure `kotlinWorksheet.kotlinCommand`
 - Kotlin syntax highlighting is bundled out-of-the-box. For language server features like autocomplete and go-to-definition, the official JetBrains Kotlin extension (`jetbrains.kotlin-server`) is recommended.
 
@@ -28,42 +29,51 @@ Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
 Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle or Maven classpath resolution, or automatic detection.
 Gradle and Maven-backed runs cache successful classpath resolutions and reuse them until build files or project sources change.
 The persistent compiler daemon (`kotlinWorksheet.daemon.enabled`) keeps a warm JVM compiler worker alive for instant sub-second evaluations.
-The current support baseline is VS Code 1.100+, Kotlin 2.4.0, and macOS, Linux, or Windows. See the [support matrix](docs/user-guide.md#support-matrix) for build tool limitations.
+See the official [Support Matrix](#support-matrix) and [Support Policy](docs/support-policy.md) for full compatibility details.
+
+## Support Matrix
+
+| Target | CI Verified Baseline | Compatibility Scope |
+| :--- | :--- | :--- |
+| **Operating Systems** | macOS (`macos-latest`), Ubuntu (`ubuntu-latest`), Windows (`windows-latest`) | macOS (Apple Silicon & Intel), Linux (x64), Windows 10/11 (x64) |
+| **Editors** | VS Code Extension Test Host | VS Code 1.100+, VSCodium, Cursor |
+| **Java Runtimes** | Eclipse Temurin OpenJDK 21 LTS | JDK 17 LTS, JDK 21 LTS, JDK 25 |
+| **Kotlin Compilers** | `kotlinc-jvm 2.4.0` | Kotlin 1.9.x through 2.4.x+ (legacy & K2 frontends) |
+| **Build Tools** | Gradle 8.10.2 & Maven 3.8+ | Standard JVM Gradle 7.x/8.x & Maven 3.8+ |
 
 ## Set Up Kotlin
 
-Check whether the Kotlin compiler is available:
+Check whether the Kotlin compiler is available on your PATH:
 
 ```sh
 kotlinc -version
 ```
 
-If the command is unavailable, install Kotlin with one of these options:
+Expected output:
+```text
+info: kotlinc-jvm 2.4.0 (JRE 21.0.6+7-LTS)
+```
+
+If the command is unavailable, install Kotlin using one of these options:
 
 ```sh
 # macOS with Homebrew
 brew install kotlin
 
-# SDKMAN
+# SDKMAN!
 sdk install kotlin
 
 # mise
 mise use --global kotlin@2.4.0
 ```
 
-Restart VS Code after installing Kotlin so the extension can detect the updated PATH. If `kotlinc` is installed elsewhere, set its path in VS Code settings:
+After installing, restart VS Code so the extension detects the updated PATH. If `kotlinc` is installed in a custom location, locate the binary with `which kotlinc` (e.g. `~/.sdkman/candidates/kotlin/current/bin/kotlinc`) and set its path in VS Code settings:
 
 ```json
 {
   "kotlinWorksheet.kotlinCommand": "/absolute/path/to/kotlinc"
 }
 ```
-
-## Set kotlinc 
-- Run `kotlinc -version` and result must be like `info: kotlinc-jvm 2.x.10 (JRE 2x.xxx)`
-- (If there is no kotlinc please install by using `sdk install kotlin` then check again
-- Run `which kotlinc` and result should be like `${HOME}/.sdkman/candidates/kotlin/current/bin/kotlinc`
-- Copy and then paste kotlinc path into "Kotlin Worksheet: Kotlin Command" in plugin setting 
 
 ## Install For Users
 
@@ -77,10 +87,10 @@ Install from the Visual Studio Marketplace:
 
 Install from a local VSIX if you are testing an unreleased build:
 
-1. Download or build `kotlin-worksheet-0.9.0.vsix`.
+1. Download or build `kotlin-worksheet-1.0.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.9.0.vsix`.
+4. Select `kotlin-worksheet-1.0.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts` or `.worksheet.kt`.
 7. Run `Kotlin Worksheet: Run`.
@@ -128,7 +138,7 @@ active request. Use `Kotlin Worksheet: Refresh Gradle Classpath` or `Refresh Mav
 after changing dependencies or build files.
 
 With the persistent daemon enabled (`kotlinWorksheet.daemon.enabled: true`), warm
-worksheet executions run in under 100 milliseconds without the repeated JVM spin-up overhead.
+worksheet executions run in ~130–210 milliseconds without the repeated JVM spin-up overhead (13–18x speedup).
 
 For the fastest simple worksheets, use `kotlinWorksheet.executionMode` set to
 `localKotlinc`, `kotlinWorksheet.renderMode` set to `decorations`, and run

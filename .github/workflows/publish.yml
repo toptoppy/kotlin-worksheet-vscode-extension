@@ -142,10 +142,16 @@ jobs:
           name: kotlin-worksheet-${{ inputs.version }}-vsix
           path: .
 
-      - name: Publish exact VSIX
+      - name: Publish to Visual Studio Marketplace
         run: pnpm exec vsce publish --packagePath "kotlin-worksheet-${RELEASE_VERSION}.vsix"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX Registry
+        if: env.OVSX_PAT != ''
+        run: npx --yes ovsx publish "kotlin-worksheet-${RELEASE_VERSION}.vsix" --pat "${OVSX_PAT}"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
       - name: Create or update GitHub release
         env:

@@ -6,11 +6,38 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-14
+
+### General Availability & Stability Milestone
+
+Kotlin Worksheet reaches **1.0.0 Stable Release**, delivering an enterprise-ready, high-performance worksheet and REPL experience for Kotlin in Visual Studio Code, VSCodium, and Cursor.
+
+### Added
+
+- **Kotlin 2.x & Annotation Support**:
+  - Full support for top-level declaration annotations (`@OptIn`, `@Suppress`, `@Deprecated`, `@Target`, `@Serializable`, etc.) on functions, variables, and classes without producing phantom results or syntax errors.
+  - Multi-line annotation declarations and multiple annotations on statements are seamlessly recognized and grouped with their target declarations.
+  - Support for Kotlin 2.x context parameters / context receivers (`context(...)`).
+  - Support for Kotlin 2.1 multi-dollar string interpolation syntax (`$$"""..."""` and `$$"..."`) in worksheet parsing and TextMate syntax highlighting.
+- **Open VSX Registry Distribution**:
+  - Added dual-publishing automation in release workflows to publish to both Visual Studio Marketplace and Open VSX Registry, enabling native availability in VSCodium, Cursor, Gitpod, and GitHub Codespaces.
+- **Official Support Matrix & Maintenance Policy**:
+  - Added [Support and Maintenance Policy](docs/support-policy.md) with committed compatibility matrices for OS, editors, Java (JDK 17, 21 LTS, 25), Kotlin (1.9 to 2.4+), and build tools (Gradle 7/8, Maven 3.8+).
+  - Committed to Semantic Versioning (SemVer 2.0.0) with frozen public commands and configuration properties.
+- **Daemon Protocol v1.0.0**:
+  - Aligned JVM daemon worker protocol to version 1.0.0.
+
+### Fixed
+
+- Fixed daemon script timeout handling to terminate hung JVM worker processes (e.g. infinite loops) and serialize shutdown lifecycle promises.
+- Fixed stale child process event listeners clobbering newly spawned daemon workers.
+- Fixed CI runner timeouts on clean remote Maven Central downloads.
+
 ## [0.9.0] - 2026-11-14
 
 ### Added
 
-- **Persistent JVM / REPL Daemon Mode**: Keeps a warm background Kotlin compiler process alive via `KotlinWorksheetDaemon.java` and `server/bin/kotlin-worksheet-daemon.jar`. Reduces worksheet execution times from ~3-5s down to sub-100ms warm runs, saving up to 95% execution overhead.
+- **Persistent JVM / REPL Daemon Mode**: Keeps a warm background Kotlin compiler process alive via `KotlinWorksheetDaemon.java` and `server/bin/kotlin-worksheet-daemon.jar`. Reduces worksheet execution times from ~2.5–3s down to ~130–210 ms warm runs (13–18x speedup), saving up to 95% execution overhead.
 - Added `kotlinWorksheet.daemon.enabled` setting (default `true`) with automatic fallback to standard `kotlinc` if the daemon is unavailable or disabled.
 - Added `Kotlin Worksheet: Restart Kotlin Daemon` command to easily cycle or reset the background worker.
 - **Maven Classpath Resolution & Caching**: Added native support for Maven projects (`pom.xml`). The extension detects Maven wrappers (`mvnw`) and installed `mvn`, resolves runtime classpaths via `dependency:build-classpath`, and caches results based on `pom.xml` content fingerprints.

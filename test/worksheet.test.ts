@@ -675,3 +675,99 @@ describe("worksheet export and templates", () => {
     expect(exported).toContain('assertEquals("84", (x * 2).toString())');
   });
 });
+
+describe("Kotlin 2.x and annotation support", () => {
+  it("instruments annotated function declarations without printing the annotation", () => {
+    const instrumented = instrumentWorksheet([
+      "@OptIn(ExperimentalStdlibApi::class)",
+      "fun greet(name: String): String = \"Hello, $name\"",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain("@OptIn(ExperimentalStdlibApi::class)");
+    expect(instrumented.script).toContain("fun greet(name: String): String = \"Hello, $name\"");
+    expect(instrumented.script).not.toContain("println(@OptIn");
+    expect(instrumented.script).toContain("println(\"__MARKER__:start:2\")");
+    expect(instrumented.script).toContain("println(\"fun greet(name: String): String\")");
+  });
+
+  it("instruments annotated variable declarations and attaches result to declaration line", () => {
+    const instrumented = instrumentWorksheet([
+      "@Suppress(\"UNUSED_VARIABLE\")",
+      "val greeting = \"Kotlin 2.x\"",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain("@Suppress(\"UNUSED_VARIABLE\")");
+    expect(instrumented.script).toContain("val greeting = \"Kotlin 2.x\"");
+    expect(instrumented.script).not.toContain("println(@Suppress");
+    expect(instrumented.script).toContain("println(\"__MARKER__:start:2\")");
+    expect(instrumented.script).toContain("println(greeting)");
+  });
+
+  it("handles Kotlin 2.x context parameters / receivers on declarations", () => {
+    const instrumented = instrumentWorksheet([
+      "context(ctx: ExecutionContext)",
+      "fun compute(): Int = 42",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain("context(ctx: ExecutionContext)");
+    expect(instrumented.script).not.toContain("println(context");
+    expect(instrumented.script).toContain("println(\"__MARKER__:start:2\")");
+    expect(instrumented.script).toContain("println(\"context(ctx: ExecutionContext) fun compute(): Int\")");
+  });
+
+  it("handles multiline annotations and multiple annotations", () => {
+    const instrumented = instrumentWorksheet([
+      "@Deprecated(",
+      "  message = \"Use replacement instead\",",
+      "  level = DeprecationLevel.WARNING",
+      ")",
+      "@Suppress(\"DEPRECATION\")",
+      "fun legacyCode(): String = \"legacy\"",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).not.toContain("println(@Deprecated");
+    expect(instrumented.script).toContain("println(\"__MARKER__:start:6\")");
+    expect(instrumented.script).toContain("println(\"fun legacyCode(): String\")");
+  });
+
+  it("handles Kotlin 2.1 multi-dollar string interpolation", () => {
+    const instrumented = instrumentWorksheet([
+      "val count = 42",
+      'val message = $$"""$$count in dollar string"""',
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain("val count = 42");
+    expect(instrumented.script).toContain("println(message)");
+    expect(instrumented.diagnostics).toEqual([]);
+  });
+
+  it("applies worksheet results cleanly on annotated code lines", () => {
+    const source = [
+      "@Suppress(\"UNUSED\")",
+      "val score = 100",
+    ].join("\n");
+
+    const results = new Map<number, string>([[2, "100"]]);
+    const applied = applyWorksheetResults(source, results);
+
+    expect(applied).toBe([
+      "@Suppress(\"UNUSED\")",
+      "val score = 100 // => 100",
+    ].join("\n"));
+  });
+
+  it("does not instrument closing braces or delimiters as expressions", () => {
+    const source = [
+      "var total = 0",
+      "for (i in 1..10) {",
+      "  total += i",
+      "}",
+      "total",
+    ].join("\n");
+
+    const instrumented = instrumentWorksheet(source, "__MARKER__:");
+    expect(instrumented.script).not.toContain("val __kotlinWorksheetValue4 = }");
+    expect(instrumented.script).not.toContain("println(\"__MARKER__:start:4\")");
+    expect(instrumented.script).toContain("println(\"__MARKER__:start:5\")");
+  });
+});

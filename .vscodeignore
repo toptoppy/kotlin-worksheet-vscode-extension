@@ -22,5 +22,6 @@ sample/**
 tsconfig.json
 tsconfig.integration.json
 pnpm-lock.yaml
+pnpm-workspace.yaml
 node_modules/**
 coverage/**

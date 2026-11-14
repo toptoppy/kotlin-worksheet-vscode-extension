@@ -1,16 +1,17 @@
 # Publishing And Maintenance
 
-This guide covers publishing Kotlin Worksheet to the Visual Studio Marketplace, updating versions, and maintaining releases.
+This guide covers publishing Kotlin Worksheet to the Visual Studio Marketplace and Open VSX Registry, updating versions, and maintaining releases.
 
-Examples in this guide target the current `0.9.0` release. Replace
-`0.9.0` consistently when preparing a later version; historical `0.8.0`
+Examples in this guide target the current `1.0.0` release. Replace
+`1.0.0` consistently when preparing a later version; historical `0.9.0`
 release material should not be reused for the current release.
 
 Official reference: https://code.visualstudio.com/api/working-with-extensions/publishing-extension
+Open VSX reference: https://open-vsx.org/
 
 ## Extension Identity
 
-The Marketplace identity is defined in `package.json`:
+The Marketplace and Open VSX identity is defined in `package.json`:
 
 ```json
 {
@@ -31,38 +32,49 @@ Marketplace page:
 https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet
 ```
 
+Open VSX page:
+
+```text
+https://open-vsx.org/extension/ws-kts-toppy/kotlin-worksheet
+```
+
 Do not change `publisher` or `name` unless you intend to create a different Marketplace extension.
 
 ## One-time Publisher Login
 
-Use the Microsoft account that owns the `ws-kts-toppy` Marketplace publisher.
+Use the Microsoft account that owns the `ws-kts-toppy` Marketplace publisher:
 
 ```sh
 pnpm exec vsce login ws-kts-toppy
 ```
 
-Paste the Marketplace Personal Access Token when prompted.
+For Open VSX, create a personal access token at [open-vsx.org/user-settings/tokens](https://open-vsx.org/user-settings/tokens):
+
+```sh
+pnpm exec ovsx login ws-kts-toppy
+```
 
 For manual publishing, a PAT is acceptable. For long-term automated publishing, plan to move to Microsoft Entra ID authentication because Azure DevOps global PATs are scheduled for retirement on December 1, 2026.
 
 ## Manual GitHub Actions Publishing
 
-Marketplace publishing is intentionally manual. Configure the repository before
-the first release:
+Publishing is intentionally manual. Configure the repository before release:
 
 1. Create a GitHub environment named `marketplace`.
 2. Add required reviewers to that environment so publishing requires approval.
 3. Add an encrypted environment secret named `VSCE_PAT` containing the
    Marketplace publishing token.
-4. Push the version-matching tag `v0.9.0` after the release commit has
+4. (Optional) Add an encrypted environment secret named `OVSX_PAT` containing the
+   Open VSX access token for dual publishing to Open VSX Registry.
+5. Push the version-matching tag `v1.0.0` after the release commit has
    passed normal CI.
-5. Open **Actions > Publish Extension > Run workflow** and enter `0.9.0`.
+6. Open **Actions > Publish Extension > Run workflow** and enter `1.0.0`.
 
-The workflow checks out `v0.9.0`, verifies that `package.json` contains
-`0.9.0`, runs the Kotlin and Gradle checks, runs integration tests, and uploads
+The workflow checks out `v1.0.0`, verifies that `package.json` contains
+`1.0.0`, runs the Kotlin, Maven, and Gradle checks, runs integration tests, and uploads
 the checked VSIX as an artifact. Only then does the protected `marketplace`
 environment allow the publish job to run. The exact checked VSIX is published
-and attached to the GitHub release.
+to Visual Studio Marketplace (and Open VSX if configured) and attached to the GitHub release.
 
 The workflow never creates tags and never runs for ordinary branch pushes.
 

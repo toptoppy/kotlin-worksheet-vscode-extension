@@ -27,7 +27,7 @@ public class KotlinWorksheetDaemon {
             execMethod = compilerClass.getMethod("exec", PrintStream.class, String[].class);
 
             // Signal readiness to VS Code client
-            REAL_OUT.println("{\"type\":\"ready\",\"version\":\"0.9.0\"}");
+            REAL_OUT.println("{\"type\":\"ready\",\"version\":\"1.0.0\"}");
             REAL_OUT.flush();
 
             // Read execution requests from stdin line-by-line
