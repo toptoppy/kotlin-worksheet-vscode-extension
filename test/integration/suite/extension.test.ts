@@ -36,7 +36,11 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
   teardown(async () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await resetSettings();
-    await rm(tempDir, { recursive: true, force: true });
+    try {
+      await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+    } catch {
+      // Ignore cleanup error on locked Windows runner temp dir
+    }
   });
 
   async function openDocument(content: string, fileName: string): Promise<vscode.TextDocument> {
