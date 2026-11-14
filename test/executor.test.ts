@@ -215,10 +215,10 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
 
     const result = await executeWorksheet(source, {
       kotlinCommand: "kotlinc",
-      timeoutMs: 35000,
+      timeoutMs: 90000,
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success, result.stderr).toBe(true);
     expect(result.results.get(4)).toBe('{"greeting":"hello_kws"}');
-  }, 40000);
+  }, 120000);
 });

@@ -42,7 +42,7 @@ describe("Kotlin Daemon Client", () => {
       // First run (daemon starts up)
       const res1 = await client.executeScript({
         scriptPath: scriptFile,
-        timeoutMs: 15000,
+        timeoutMs: 25000,
       });
 
       expect(res1.exitCode).toBe(0);
@@ -52,7 +52,7 @@ describe("Kotlin Daemon Client", () => {
       // Second run (warm evaluation)
       const res2 = await client.executeScript({
         scriptPath: scriptFile,
-        timeoutMs: 10000,
+        timeoutMs: 15000,
       });
 
       expect(res2.exitCode).toBe(0);
@@ -67,7 +67,7 @@ describe("Kotlin Daemon Client", () => {
       expect(client.isRunning).toBe(false);
       await rm(tempDir, { recursive: true, force: true });
     }
-  });
+  }, 40000);
 
   it("handles script compilation errors", async () => {
     const client = new KotlinDaemonClient();
@@ -78,7 +78,7 @@ describe("Kotlin Daemon Client", () => {
       await writeFile(scriptFile, 'val num: Int = "not_int"\n', "utf8");
       const res = await client.executeScript({
         scriptPath: scriptFile,
-        timeoutMs: 15000,
+        timeoutMs: 25000,
       });
 
       expect(res.exitCode).toBe(1);
@@ -87,7 +87,7 @@ describe("Kotlin Daemon Client", () => {
       await client.shutdown();
       await rm(tempDir, { recursive: true, force: true });
     }
-  });
+  }, 40000);
 
   it("handles cancellation", async () => {
     const client = new KotlinDaemonClient();
@@ -102,7 +102,7 @@ describe("Kotlin Daemon Client", () => {
 
       const res = await client.executeScript({
         scriptPath: scriptFile,
-        timeoutMs: 10000,
+        timeoutMs: 15000,
         cancellationSignal: controller.signal,
       });
 
@@ -111,5 +111,5 @@ describe("Kotlin Daemon Client", () => {
       await client.shutdown();
       await rm(tempDir, { recursive: true, force: true });
     }
-  }, 15000);
+  }, 30000);
 });

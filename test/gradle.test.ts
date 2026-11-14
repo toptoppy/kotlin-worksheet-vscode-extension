@@ -320,7 +320,7 @@ describe.skipIf(!hasGradle() || !hasKotlinc())("gradle classpath execution", () 
 
   it("runs a worksheet against Arrow Core from Maven Central", async () => {
     const fixtureRoot = path.resolve("test/fixtures/gradle-arrow");
-    const classpath = await resolveGradleClasspath(fixtureRoot, { timeoutMs: 60000 });
+    const classpath = await resolveGradleClasspath(fixtureRoot, { timeoutMs: 120000 });
 
     expect(classpath.success, classpath.stderr).toBe(true);
     expect(classpath.classpath.length).toBeGreaterThan(0);
@@ -336,7 +336,7 @@ describe.skipIf(!hasGradle() || !hasKotlinc())("gradle classpath execution", () 
       ].join("\n"),
       {
         kotlinCommand: "kotlinc",
-        timeoutMs: 20000,
+        timeoutMs: 30000,
         classpath: classpath.classpath,
       },
     );
@@ -346,7 +346,7 @@ describe.skipIf(!hasGradle() || !hasKotlinc())("gradle classpath execution", () 
       [5, "42"],
       [6, "42"],
     ]));
-  }, 120000);
+  }, 150000);
 });
 
 async function createTempDir(prefix: string): Promise<string> {

@@ -37,6 +37,7 @@ export class KotlinDaemonClient {
   private readinessReject: ((err: Error) => void) | null = null;
   private idleTimer: NodeJS.Timeout | null = null;
   private isShuttingDown = false;
+  private shutdownPromise: Promise<void> | null = null;
 
   constructor(
     private readonly jarPathOverride?: string,
@@ -105,6 +106,10 @@ export class KotlinDaemonClient {
   }
 
   public async start(kotlinCommand = "kotlinc"): Promise<void> {
+    if (this.shutdownPromise) {
+      await this.shutdownPromise;
+    }
+
     if (this.isRunning) {
       return this.readinessPromise ?? Promise.resolve();
     }
@@ -142,11 +147,13 @@ export class KotlinDaemonClient {
       this.readinessReject = reject;
     });
 
+    let child: ChildProcess;
     try {
-      this.childProcess = spawn(javaCmd, javaArgs, {
+      child = spawn(javaCmd, javaArgs, {
         stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env, KOTLIN_HOME: kotlinHome },
       });
+      this.childProcess = child;
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       this.childProcess = null;
@@ -154,12 +161,16 @@ export class KotlinDaemonClient {
       throw error;
     }
 
-    this.childProcess.stdout?.on("data", (chunk: Buffer) => this.handleStdout(chunk));
-    this.childProcess.stderr?.on("data", () => {
+    child.stdout?.on("data", (chunk: Buffer) => {
+      if (this.childProcess !== child) return;
+      this.handleStdout(chunk);
+    });
+    child.stderr?.on("data", () => {
       // Background diagnostic stderr can be inspected if needed
     });
 
-    this.childProcess.on("error", (err) => {
+    child.on("error", (err) => {
+      if (this.childProcess !== child) return;
       if (this.readinessReject) {
         this.readinessReject(err);
         this.readinessResolve = null;
@@ -168,15 +179,12 @@ export class KotlinDaemonClient {
       this.failAllPending(err.message);
     });
 
-    this.childProcess.on("exit", (code) => {
-      const hadPending = this.pendingRequests.size > 0;
+    child.on("exit", (code) => {
+      if (this.childProcess !== child) return;
       this.failAllPending(`Daemon process exited prematurely with code ${code}`);
       this.childProcess = null;
       this.readinessPromise = null;
       this.clearIdleTimer();
-      if (!this.isShuttingDown && hadPending) {
-        // Unexpected exit while requests were active
-      }
     });
 
     this.resetIdleTimer();
@@ -239,6 +247,7 @@ export class KotlinDaemonClient {
           if (cancellationListener && options.cancellationSignal) {
             options.cancellationSignal.removeEventListener("abort", cancellationListener);
           }
+          void this.shutdown();
           resolve({
             stdout: "",
             stderr: "Execution timed out",
@@ -293,10 +302,15 @@ export class KotlinDaemonClient {
   }
 
   public async shutdown(): Promise<void> {
+    if (this.shutdownPromise) {
+      return this.shutdownPromise;
+    }
+
     this.clearIdleTimer();
     this.isShuttingDown = true;
 
     if (!this.childProcess) {
+      this.isShuttingDown = false;
       return;
     }
 
@@ -304,27 +318,34 @@ export class KotlinDaemonClient {
     this.childProcess = null;
     this.readinessPromise = null;
 
-    try {
-      proc.stdin?.write(JSON.stringify({ command: "shutdown" }) + "\n");
-    } catch {
-      // Process might already be dead
-    }
+    this.shutdownPromise = (async () => {
+      try {
+        proc.stdin?.write(JSON.stringify({ command: "shutdown" }) + "\n");
+      } catch {
+        // Process might already be dead
+      }
 
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        try {
-          proc.kill("SIGTERM");
-        } catch {
-          // ignore
-        }
-        resolve();
-      }, 1000);
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          try {
+            proc.kill("SIGTERM");
+          } catch {
+            // ignore
+          }
+          resolve();
+        }, 1000);
 
-      proc.once("exit", () => {
-        clearTimeout(timeout);
-        resolve();
+        proc.once("exit", () => {
+          clearTimeout(timeout);
+          resolve();
+        });
       });
+    })().finally(() => {
+      this.shutdownPromise = null;
+      this.isShuttingDown = false;
     });
+
+    return this.shutdownPromise;
   }
 
   private handleStdout(chunk: Buffer): void {
