@@ -1,8 +1,8 @@
 {
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
-  "description": "Evaluate Kotlin .worksheet.kts files and write inline results.",
-  "version": "0.7.0",
+  "description": "Evaluate Kotlin .worksheet.kts and .worksheet.kt files and write inline results.",
+  "version": "0.8.0",
   "publisher": "ws-kts-toppy",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -39,17 +39,20 @@
     "onCommand:kotlinWorksheet.runCurrentBlock",
     "onCommand:kotlinWorksheet.clearResults",
     "onCommand:kotlinWorksheet.newWorksheet",
+    "onCommand:kotlinWorksheet.newWorksheetFromTemplate",
+    "onCommand:kotlinWorksheet.exportToKotlin",
+    "onCommand:kotlinWorksheet.exportToTest",
     "onCommand:kotlinWorksheet.toggleRunOnSave",
     "onCommand:kotlinWorksheet.toggleRenderMode",
     "onCommand:kotlinWorksheet.refreshGradleClasspath",
     "onCommand:kotlinWorksheet.checkEnvironment",
     "onCommand:kotlinWorksheet.showOutput",
-    "workspaceContains:**/*.worksheet.kts"
+    "onCommand:kotlinWorksheet.inspectResult",
+    "onCommand:kotlinWorksheet.copyResult",
+    "workspaceContains:**/*.worksheet.kts",
+    "workspaceContains:**/*.worksheet.kt"
   ],
   "main": "./out/extension.js",
-  "extensionPack": [
-    "fwcd.kotlin"
-  ],
   "contributes": {
     "commands": [
       {
@@ -101,6 +104,35 @@
         "command": "kotlinWorksheet.showOutput",
         "title": "Kotlin Worksheet: Show Log",
         "icon": "$(output)"
+      },
+      {
+        "command": "kotlinWorksheet.inspectResult",
+        "title": "Kotlin Worksheet: Inspect Result",
+        "icon": "$(search)",
+        "enablement": "kotlinWorksheet.active"
+      },
+      {
+        "command": "kotlinWorksheet.copyResult",
+        "title": "Kotlin Worksheet: Copy Result",
+        "icon": "$(copy)",
+        "enablement": "kotlinWorksheet.active"
+      },
+      {
+        "command": "kotlinWorksheet.newWorksheetFromTemplate",
+        "title": "Kotlin Worksheet: New Worksheet From Template...",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "kotlinWorksheet.exportToKotlin",
+        "title": "Kotlin Worksheet: Export to Kotlin File",
+        "icon": "$(export)",
+        "enablement": "kotlinWorksheet.active"
+      },
+      {
+        "command": "kotlinWorksheet.exportToTest",
+        "title": "Kotlin Worksheet: Export to Test File",
+        "icon": "$(beaker)",
+        "enablement": "kotlinWorksheet.active"
       }
     ],
     "configuration": {
@@ -180,7 +212,15 @@
         "extensions": [
           ".kt",
           ".kts"
-        ]
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kotlin",
+        "scopeName": "source.kotlin",
+        "path": "./syntaxes/kotlin.tmLanguage.json"
       }
     ],
     "menus": {
@@ -221,6 +261,26 @@
           "command": "kotlinWorksheet.clearResults",
           "when": "kotlinWorksheet.active",
           "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.inspectResult",
+          "when": "kotlinWorksheet.active",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.copyResult",
+          "when": "kotlinWorksheet.active",
+          "group": "1_modification"
+        },
+        {
+          "command": "kotlinWorksheet.exportToKotlin",
+          "when": "kotlinWorksheet.active",
+          "group": "2_export"
+        },
+        {
+          "command": "kotlinWorksheet.exportToTest",
+          "when": "kotlinWorksheet.active",
+          "group": "2_export"
         }
       ]
     },

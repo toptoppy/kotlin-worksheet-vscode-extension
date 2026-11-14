@@ -52,7 +52,10 @@ export async function executeWorksheet(
     const output = processResult.exitCode === 0
       ? parseWorksheetOutputDetails(processResult.stdout, instrumented.markerPrefix)
       : { results: new Map<number, string>(), runtimeOutput: "" };
-    const diagnostics = parseKotlinDiagnostics(processResult.stderr, instrumented.generatedLineToSourceLine);
+    const diagnostics = [
+      ...instrumented.diagnostics,
+      ...parseKotlinDiagnostics(processResult.stderr, instrumented.generatedLineToSourceLine),
+    ];
 
     return {
       success: processResult.exitCode === 0 && !processResult.timedOut && !processResult.cancelled,

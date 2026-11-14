@@ -10,7 +10,11 @@ import {
 } from "./gradle.js";
 import {
   WORKSHEET_SUFFIX,
+  WORKSHEET_SUFFIX_DESCRIPTION,
+  WORKSHEET_TEMPLATES,
   applyWorksheetResults,
+  exportToKotlinFile,
+  exportToTestFile,
   formatWorksheetResult,
   findWorksheetRange,
   isWorksheetPath,
@@ -31,6 +35,7 @@ const cleaningDocuments = new Set<string>();
 const preservingResults = new Set<string>();
 const decorationOptionsByDocument = new Map<string, vscode.DecorationOptions[]>();
 const decorationResultsByDocument = new Map<string, Map<number, string>>();
+const latestWorksheetResultsByDocument = new Map<string, Map<number, string>>();
 const shownGradleFallbacks = new Set<string>();
 const gradleClasspathCache = new GradleClasspathCache();
 let nextRunId = 1;
@@ -70,13 +75,25 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-  context.subscriptions.push(output, diagnostics, runOnSaveStatus, resultDecoration, { dispose: disposeRunStateListener });
+  const resultProvider = new KotlinWorksheetResultProvider();
+  context.subscriptions.push(
+    output,
+    diagnostics,
+    runOnSaveStatus,
+    resultDecoration,
+    { dispose: disposeRunStateListener },
+    vscode.workspace.registerTextDocumentContentProvider("kotlin-worksheet-result", resultProvider),
+    vscode.languages.registerHoverProvider({ scheme: "file", language: "kotlin" }, createWorksheetHoverProvider()),
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand("kotlinWorksheet.run", () => runActiveWorksheet(output, diagnostics, resultDecoration, false)),
     vscode.commands.registerCommand("kotlinWorksheet.runSelection", () => runSelection(output, diagnostics, resultDecoration)),
     vscode.commands.registerCommand("kotlinWorksheet.runCurrentBlock", () => runCurrentBlock(output, diagnostics, resultDecoration)),
     vscode.commands.registerCommand("kotlinWorksheet.clearResults", () => clearActiveWorksheet(resultDecoration, diagnostics)),
     vscode.commands.registerCommand("kotlinWorksheet.newWorksheet", newWorksheet),
+    vscode.commands.registerCommand("kotlinWorksheet.newWorksheetFromTemplate", newWorksheetFromTemplate),
+    vscode.commands.registerCommand("kotlinWorksheet.exportToKotlin", exportToKotlin),
+    vscode.commands.registerCommand("kotlinWorksheet.exportToTest", exportToTest),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRunOnSave", toggleRunOnSave),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRenderMode", () => toggleRenderMode(resultDecoration)),
     vscode.commands.registerCommand("kotlinWorksheet.refreshGradleClasspath", () => refreshGradleClasspath(output)),
@@ -84,6 +101,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("kotlinWorksheet.showOutput", () => output.show(true)),
     vscode.commands.registerCommand("kotlinWorksheet.checkEnvironment", () => checkWorksheetEnvironment(output)),
     vscode.commands.registerCommand("kotlinWorksheet.cancelActiveRun", cancelActiveRun),
+    vscode.commands.registerCommand("kotlinWorksheet.inspectResult", inspectResult),
+    vscode.commands.registerCommand("kotlinWorksheet.copyResult", copyResult),
     vscode.window.onDidChangeActiveTextEditor(updateStatus),
     vscode.window.onDidChangeVisibleTextEditors((editors) => {
       for (const editor of editors) {
@@ -120,6 +139,7 @@ export function activate(context: vscode.ExtensionContext): void {
       diagnostics.delete(document.uri);
       decorationOptionsByDocument.delete(document.uri.toString());
       decorationResultsByDocument.delete(document.uri.toString());
+      latestWorksheetResultsByDocument.delete(document.uri.toString());
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (
@@ -158,6 +178,7 @@ export function deactivate(): void {
   preservingResults.clear();
   decorationOptionsByDocument.clear();
   decorationResultsByDocument.clear();
+  latestWorksheetResultsByDocument.clear();
   shownGradleFallbacks.clear();
   gradleClasspathCache.clear();
 }
@@ -185,7 +206,7 @@ async function runSelection(
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || !isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file first.`);
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file first.`);
     return;
   }
   if (editor.selection.isEmpty) {
@@ -208,7 +229,7 @@ async function runCurrentBlock(
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || !isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file first.`);
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file first.`);
     return;
   }
 
@@ -226,7 +247,7 @@ async function runWorksheetDocument(
   resultRange?: WorksheetRange,
 ): Promise<void> {
   if (!isWorksheetPath(document.fileName)) {
-    void vscode.window.showInformationMessage(`Kotlin worksheets must end with ${WORKSHEET_SUFFIX}.`);
+    void vscode.window.showInformationMessage(`Kotlin worksheets must end with ${WORKSHEET_SUFFIX_DESCRIPTION}.`);
     return;
   }
 
@@ -421,6 +442,7 @@ async function runWorksheetDocument(
             const mergedResults = resultRange
               ? mergeWorksheetResults(previousResults, execution.results, resultRange)
               : execution.results;
+            latestWorksheetResultsByDocument.set(uri, new Map(mergedResults));
             if (renderMode === "decorations") {
               const cleanedText = source;
               if (cleanedText !== document.getText()) {
@@ -757,7 +779,7 @@ function logEnvironmentCheck(output: vscode.LogOutputChannel, result: Environmen
 function cancelActiveRun(): void {
   const editor = vscode.window.activeTextEditor;
   if (!editor || !isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to cancel a worksheet run.`);
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file to cancel a worksheet run.`);
     return;
   }
 
@@ -804,7 +826,7 @@ function resolveExecutionMode(
 async function refreshGradleClasspath(output: vscode.LogOutputChannel): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || !isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to refresh its Gradle classpath.`);
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file to refresh its Gradle classpath.`);
     return;
   }
 
@@ -855,7 +877,7 @@ async function clearActiveWorksheet(
   }
 
   if (!isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Kotlin worksheets must end with ${WORKSHEET_SUFFIX}.`);
+    void vscode.window.showInformationMessage(`Kotlin worksheets must end with ${WORKSHEET_SUFFIX_DESCRIPTION}.`);
     return;
   }
 
@@ -865,13 +887,14 @@ async function clearActiveWorksheet(
   }
   clearWorksheetDecorations(editor.document, resultDecoration);
   decorationResultsByDocument.delete(editor.document.uri.toString());
+  latestWorksheetResultsByDocument.delete(editor.document.uri.toString());
   diagnostics.delete(editor.document.uri);
 }
 
 async function toggleRunOnSave(): Promise<boolean | undefined> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || !isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to toggle Kotlin worksheet auto-run.`);
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file to toggle Kotlin worksheet auto-run.`);
     return undefined;
   }
 
@@ -887,7 +910,7 @@ async function toggleRenderMode(
 ): Promise<"inlineComments" | "decorations" | undefined> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || !isWorksheetPath(editor.document.fileName)) {
-    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX} file to toggle worksheet render mode.`);
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file to toggle worksheet render mode.`);
     return undefined;
   }
 
@@ -909,22 +932,33 @@ async function toggleRenderMode(
 }
 
 async function newWorksheet(preselectedFolder?: vscode.WorkspaceFolder): Promise<void> {
-  const content = [
-    "val language = \"Kotlin\"",
-    "language.uppercase()",
-    "",
-    "val answer = 40 + 2",
-    "answer",
-    "",
-    "println(\"worksheets run top to bottom\")",
-    "",
-  ].join("\n");
+  await createWorksheetDocument(WORKSHEET_TEMPLATES[0].content, preselectedFolder);
+}
 
+async function newWorksheetFromTemplate(preselectedFolder?: vscode.WorkspaceFolder): Promise<void> {
+  const chosen = await vscode.window.showQuickPick(
+    WORKSHEET_TEMPLATES.map((t) => ({
+      label: t.label,
+      description: t.description,
+      template: t,
+    })),
+    { placeHolder: "Select a Kotlin Worksheet template" },
+  );
+  if (!chosen) {
+    return;
+  }
+  await createWorksheetDocument(chosen.template.content, preselectedFolder);
+}
+
+async function createWorksheetDocument(
+  content: string,
+  preselectedFolder?: vscode.WorkspaceFolder,
+): Promise<void> {
   const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
   if (workspaceFolders.length === 0) {
     const document = await vscode.workspace.openTextDocument({ language: "kotlin", content });
     await vscode.window.showTextDocument(document);
-    void vscode.window.showInformationMessage(`Save this file with the ${WORKSHEET_SUFFIX} suffix to run it.`);
+    void vscode.window.showInformationMessage(`Save this file with the ${WORKSHEET_SUFFIX_DESCRIPTION} suffix to run it.`);
     return;
   }
 
@@ -944,6 +978,56 @@ async function newWorksheet(preselectedFolder?: vscode.WorkspaceFolder): Promise
   await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf8"));
   const document = await vscode.workspace.openTextDocument(uri);
   await vscode.window.showTextDocument(document);
+}
+
+async function exportToKotlin(target?: vscode.Uri | string): Promise<void> {
+  const document = resolveWorksheetDocument(target);
+  if (!document) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file first.`);
+    return;
+  }
+
+  const exported = exportToKotlinFile(document.getText());
+  const exportedDoc = await vscode.workspace.openTextDocument({ language: "kotlin", content: exported });
+  await vscode.window.showTextDocument(exportedDoc, { viewColumn: vscode.ViewColumn.Beside });
+  void vscode.window.showInformationMessage("Worksheet exported to Kotlin source.");
+}
+
+async function exportToTest(target?: vscode.Uri | string): Promise<void> {
+  const document = resolveWorksheetDocument(target);
+  if (!document) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file first.`);
+    return;
+  }
+
+  const uri = document.uri.toString();
+  const results = latestWorksheetResultsByDocument.get(uri)
+    ?? decorationResultsByDocument.get(uri)
+    ?? parseWorksheetResults(document.getText());
+
+  const base = path.basename(document.fileName).replace(/\.worksheet\.(?:kts|kt)$/, "");
+  const className = `${base.charAt(0).toUpperCase()}${base.slice(1)}WorksheetTest`;
+
+  const exported = exportToTestFile(document.getText(), results, { className });
+  const exportedDoc = await vscode.workspace.openTextDocument({ language: "kotlin", content: exported });
+  await vscode.window.showTextDocument(exportedDoc, { viewColumn: vscode.ViewColumn.Beside });
+  void vscode.window.showInformationMessage("Worksheet exported to Kotlin test.");
+}
+
+function resolveWorksheetDocument(target?: vscode.Uri | string): vscode.TextDocument | undefined {
+  if (target) {
+    const targetStr = typeof target === "string" ? target : target.toString();
+    for (const doc of vscode.workspace.textDocuments) {
+      if (doc.uri.toString() === targetStr && isWorksheetPath(doc.fileName)) {
+        return doc;
+      }
+    }
+  }
+  const editor = vscode.window.activeTextEditor;
+  if (editor && isWorksheetPath(editor.document.fileName)) {
+    return editor.document;
+  }
+  return undefined;
 }
 
 function updateWorksheetStatus(status: vscode.StatusBarItem): void {
@@ -969,7 +1053,7 @@ function updateWorksheetStatus(status: vscode.StatusBarItem): void {
 
 async function nextWorksheetUri(folderUri: vscode.Uri): Promise<vscode.Uri> {
   for (let index = 1; index < 1000; index += 1) {
-    const name = index === 1 ? "worksheet.worksheet.kts" : `worksheet-${index}.worksheet.kts`;
+    const name = index === 1 ? `worksheet${WORKSHEET_SUFFIX}` : `worksheet-${index}${WORKSHEET_SUFFIX}`;
     const uri = vscode.Uri.joinPath(folderUri, name);
     try {
       await vscode.workspace.fs.stat(uri);
@@ -1081,4 +1165,159 @@ function clearWorksheetDecorations(
 
   decorationOptionsByDocument.delete(docKey);
   decorationResultsByDocument.delete(docKey);
+}
+
+class KotlinWorksheetResultProvider implements vscode.TextDocumentContentProvider {
+  provideTextDocumentContent(uri: vscode.Uri): string {
+    const params = new URLSearchParams(uri.query);
+    const docUri = params.get("uri");
+    const lineStr = params.get("line");
+    if (!docUri || !lineStr) {
+      return "No worksheet result specified.";
+    }
+    const line = parseInt(lineStr, 10);
+    const result = getWorksheetResultForLineByUri(docUri, line);
+    if (!result) {
+      return `No worksheet result recorded for line ${line}.`;
+    }
+
+    try {
+      const parsed = JSON.parse(result);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return result;
+    }
+  }
+}
+
+function getWorksheetResultForLineByUri(docUri: string, line: number): string | undefined {
+  const latest = latestWorksheetResultsByDocument.get(docUri)?.get(line);
+  if (latest !== undefined) {
+    return latest;
+  }
+  const decorated = decorationResultsByDocument.get(docUri)?.get(line);
+  if (decorated !== undefined) {
+    return decorated;
+  }
+  for (const doc of vscode.workspace.textDocuments) {
+    if (doc.uri.toString() === docUri) {
+      return parseWorksheetResults(doc.getText()).get(line);
+    }
+  }
+  return undefined;
+}
+
+function createWorksheetHoverProvider(): vscode.HoverProvider {
+  return {
+    provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.Hover | undefined {
+      if (!isWorksheetPath(document.fileName)) {
+        return undefined;
+      }
+      const line = position.line + 1;
+      const result = getWorksheetResultForLineByUri(document.uri.toString(), line);
+      if (!result) {
+        return undefined;
+      }
+
+      const config = vscode.workspace.getConfiguration("kotlinWorksheet", document.uri);
+      const maxResultLength = config.get<number>("maxResultLength", 500);
+      const isTruncated = isWorksheetResultTruncated(result, maxResultLength);
+
+      const inspectArgs = encodeURIComponent(JSON.stringify({ uri: document.uri.toString(), line }));
+      const copyArgs = encodeURIComponent(JSON.stringify({ uri: document.uri.toString(), line }));
+
+      const md = new vscode.MarkdownString();
+      md.isTrusted = true;
+      md.appendMarkdown(`**Kotlin Worksheet Result** (Line ${line})\n\n`);
+      md.appendCodeblock(formatWorksheetResult(result, 1000), "kotlin");
+
+      if (isTruncated) {
+        md.appendMarkdown(`\n\n*(Truncated in editor to ${maxResultLength} characters)*\n\n`);
+      }
+      md.appendMarkdown(
+        `\n\n[$(search) Inspect Full Output](command:kotlinWorksheet.inspectResult?${inspectArgs}) | [$(copy) Copy Result](command:kotlinWorksheet.copyResult?${copyArgs})`,
+      );
+
+      const textLine = document.lineAt(position.line);
+      return new vscode.Hover(md, textLine.range);
+    },
+  };
+}
+
+async function inspectResult(args?: { uri?: string; line?: number } | number): Promise<void> {
+  let docUri: string;
+  let line: number;
+
+  if (typeof args === "number") {
+    line = args;
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+    docUri = editor.document.uri.toString();
+  } else if (args && typeof args.line === "number") {
+    line = args.line;
+    docUri = args.uri ?? vscode.window.activeTextEditor?.document.uri.toString() ?? "";
+  } else {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || !isWorksheetPath(editor.document.fileName)) {
+      void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file first.`);
+      return;
+    }
+    line = editor.selection.active.line + 1;
+    docUri = editor.document.uri.toString();
+  }
+
+  const result = getWorksheetResultForLineByUri(docUri, line);
+  if (!result) {
+    void vscode.window.showInformationMessage(`No worksheet result found on line ${line}.`);
+    return;
+  }
+
+  let ext = "txt";
+  try {
+    JSON.parse(result);
+    ext = "json";
+  } catch {
+    // Leave as txt
+  }
+
+  const query = new URLSearchParams({ uri: docUri, line: String(line) }).toString();
+  const uri = vscode.Uri.parse(`kotlin-worksheet-result://inspect/Line-${line}-Result.${ext}?${query}`);
+  const doc = await vscode.workspace.openTextDocument(uri);
+  await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside, preview: true });
+}
+
+async function copyResult(args?: { uri?: string; line?: number } | number): Promise<void> {
+  let docUri: string;
+  let line: number;
+
+  if (typeof args === "number") {
+    line = args;
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+    docUri = editor.document.uri.toString();
+  } else if (args && typeof args.line === "number") {
+    line = args.line;
+    docUri = args.uri ?? vscode.window.activeTextEditor?.document.uri.toString() ?? "";
+  } else {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || !isWorksheetPath(editor.document.fileName)) {
+      void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file first.`);
+      return;
+    }
+    line = editor.selection.active.line + 1;
+    docUri = editor.document.uri.toString();
+  }
+
+  const result = getWorksheetResultForLineByUri(docUri, line);
+  if (!result) {
+    void vscode.window.showInformationMessage(`No worksheet result found on line ${line}.`);
+    return;
+  }
+
+  await vscode.env.clipboard.writeText(result);
+  void vscode.window.showInformationMessage(`Worksheet result for line ${line} copied to clipboard.`);
 }

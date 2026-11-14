@@ -355,6 +355,59 @@ suite("Kotlin Worksheet Extension Test Suite", () => {
     assert.strictEqual(document.getText(), "val x = 40\nx + 2");
     assert.strictEqual(vscode.languages.getDiagnostics(document.uri).length, 0);
   }).timeout(30000);
+
+  (hasKotlinc ? test : test.skip)("runs a .worksheet.kt file and writes results", async () => {
+    const document = await openDocument("val a = 10\nval b = 20\na + b", "demo.worksheet.kt");
+    await configureExecution(document.uri);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    await waitFor(() => document.getText().includes("a + b // => 30"), 20000);
+
+    assert.ok(document.getText().includes("val a = 10 // => 10"));
+    assert.ok(document.getText().includes("val b = 20 // => 20"));
+    assert.ok(document.getText().includes("a + b // => 30"));
+    assert.strictEqual(vscode.languages.getDiagnostics(document.uri).length, 0);
+  }).timeout(30000);
+
+  (hasKotlinc ? test : test.skip)("inspectResult and copyResult work with evaluated results", async () => {
+    const document = await openDocument("val count = 42\ncount * 2", "inspect.worksheet.kt");
+    await configureExecution(document.uri);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.run");
+    await waitFor(() => document.getText().includes("count * 2 // => 84"), 20000);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.copyResult", { uri: document.uri.toString(), line: 2 });
+    const copied = await vscode.env.clipboard.readText();
+    assert.strictEqual(copied, "84");
+
+    await vscode.commands.executeCommand("kotlinWorksheet.inspectResult", { uri: document.uri.toString(), line: 2 });
+    await waitFor(
+      () => vscode.window.tabGroups.all.some((group) => group.tabs.some((tab) => tab.label.includes("Line-2-Result"))),
+      10000,
+    );
+    assert.ok(
+      vscode.window.tabGroups.all.some((group) => group.tabs.some((tab) => tab.label.includes("Line-2-Result"))),
+    );
+  }).timeout(30000);
+
+  test("exportToKotlin and exportToTest open generated Kotlin files", async () => {
+    const document = await openDocument("val greeting = \"hello\"\ngreeting.uppercase() // => HELLO", "export.worksheet.kt");
+    await vscode.window.showTextDocument(document);
+
+    await vscode.commands.executeCommand("kotlinWorksheet.exportToKotlin", document.uri);
+    await waitFor(() => vscode.workspace.textDocuments.some((doc) => doc.getText().includes("fun main()")));
+    const exportedKotlin = vscode.workspace.textDocuments.find((doc) => doc.getText().includes("fun main()"));
+    assert.ok(exportedKotlin);
+    assert.ok(exportedKotlin.getText().includes("val greeting = \"hello\""));
+    assert.ok(!exportedKotlin.getText().includes("// =>"));
+
+    await vscode.commands.executeCommand("kotlinWorksheet.exportToTest", document.uri);
+    await waitFor(() => vscode.workspace.textDocuments.some((doc) => doc.getText().includes("class ExportWorksheetTest")));
+    const exportedTest = vscode.workspace.textDocuments.find((doc) => doc.getText().includes("class ExportWorksheetTest"));
+    assert.ok(exportedTest);
+    assert.ok(exportedTest.getText().includes("import kotlin.test.assertEquals"));
+    assert.ok(exportedTest.getText().includes('assertEquals("HELLO", (greeting.uppercase()).toString())'));
+  }).timeout(20000);
 });
 
 async function configureExecution(resource: vscode.Uri): Promise<void> {

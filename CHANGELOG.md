@@ -6,8 +6,42 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-14
+
+### Added
+
+- Supported `.worksheet.kt` files alongside `.worksheet.kts` across all commands,
+  activation events, and execution workflows.
+- Bundled standalone Kotlin TextMate grammar (`syntaxes/kotlin.tmLanguage.json`)
+  and language configuration, decoupling from `fwcd.kotlin` to avoid conflicts
+  with JetBrains' official Kotlin language server (`jetbrains.kotlin-server`).
+- Added interactive result hovers that display evaluated results with quick
+  actions to inspect or copy.
+- Added `Kotlin Worksheet: Inspect Result` command that opens full or truncated
+  results in a side-by-side read-only tab with search and syntax highlighting
+  (pretty-printed JSON for structured values).
+- Added `Kotlin Worksheet: Copy Result` command to copy untruncated worksheet
+  results directly to the clipboard.
+- Added `Kotlin Worksheet: New Worksheet From Template...` with pre-populated,
+  runnable examples for Blank, Kotlin Fundamentals, Collections & Sequences,
+  Coroutines & Flow, and Arrow-kt Functional programming.
+- Added `Kotlin Worksheet: Export to Kotlin File` to convert worksheet code into
+  a standard, clean Kotlin file wrapped in `fun main()`.
+- Added `Kotlin Worksheet: Export to Test File` to convert evaluated worksheet
+  expressions into ready-to-run JUnit 5 / `kotlin.test` `assertEquals` test cases.
+
 ### Changed
 
+- Function declarations now display their source signatures rather than inferred
+  callable types, and same-worksheet extension-function references are analyzed.
+- Multiline destructuring declarations now produce worksheet results when the
+  binding pattern spans lines.
+- Generic same-worksheet extension references now specialize their function
+  types from the receiver type arguments.
+- External callable references without enough type information now show a
+  warning instead of a runtime object result.
+- Untyped lambda values whose function type cannot be inferred now show a
+  warning instead of a runtime object result.
 - Hardened process timeout and cancellation ownership to prevent conflicting
   terminal states and duplicate force-kill timers.
 - Made Gradle temporary directories collision-safe and cancellation-aware.

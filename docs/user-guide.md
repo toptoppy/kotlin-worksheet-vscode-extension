@@ -1,12 +1,12 @@
 # Kotlin Worksheet User Guide
 
-Kotlin Worksheet evaluates `.worksheet.kts` files inside VS Code and writes results back as inline comments.
+Kotlin Worksheet evaluates `.worksheet.kts` and `.worksheet.kt` files inside VS Code and writes results back as inline comments or decorations.
 
 ## Requirements
 
 - VS Code 1.100 or newer
 - Kotlin compiler available as `kotlinc`, or configured through `kotlinWorksheet.kotlinCommand`
-- Kotlin language support extension for syntax highlighting. This extension packs `fwcd.kotlin`, but install or enable a Kotlin syntax extension if `.kts` files still appear in one color.
+- Kotlin syntax highlighting is bundled out-of-the-box via standalone TextMate grammars. For language server features like autocomplete and go-to-definition, JetBrains' official Kotlin extension (`jetbrains.kotlin-server`) is recommended.
 - A trusted VS Code workspace for execution
 
 Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
@@ -145,8 +145,9 @@ runtime output:
 
 | Source | Result |
 | --- | --- |
-| Function declaration | Function type, such as `(Int) -> String` |
+| Function declaration | Source signature, such as `fun foo(x: Int): String` |
 | Lambda or same-worksheet function reference | Inferred function type |
+| External function reference | Inferred or explicitly declared function type |
 | Normal expression | Evaluated value |
 | `println(...)` and other side effects | Runtime Output only |
 
@@ -154,7 +155,7 @@ For example:
 
 ```kotlin
 fun foo(x: Int): String = x.toString()
-// => (Int) -> String
+// => fun foo(x: Int): String
 
 val fooRef = ::foo
 // => (Int) -> String
@@ -170,6 +171,13 @@ println(result)
 
 Function declarations are not called automatically. Printed text from the
 function body appears in Runtime Output only when the function is called.
+If the extension cannot infer an external function reference's type, it shows a
+warning in Problems and omits the misleading runtime object result. Add an
+explicit function type to display its declared type.
+An untyped lambda whose function type cannot be inferred is handled similarly;
+explicitly typed values continue to use their declared type or value result.
+These warnings are limited to likely function values; ordinary control flow,
+side effects, and known property references do not produce analyzer warnings.
 
 ### Focused Evaluation
 
@@ -181,13 +189,24 @@ executed range.
 
 Use `Kotlin Worksheet: Clear Results` to remove all generated result comments from the active worksheet.
 
+### Inspecting Results & Value Hovers
+
+Hovering over any line with an evaluated worksheet result displays a rich
+tooltip with the formatted result.
+
+When a result exceeds `kotlinWorksheet.maxResultLength` (default: 500 characters),
+it is truncated with `...` in the editor. You can interact with the full value:
+
+- Click **Inspect Full Output** in the hover tooltip (or run `Kotlin Worksheet: Inspect Result` from the Command Palette or context menu) to open the full output in a side-by-side read-only tab with search and syntax highlighting (pretty-printed JSON for JSON-like values).
+- Click **Copy Result** (or run `Kotlin Worksheet: Copy Result`) to copy the full untruncated string directly to the clipboard.
+
 ## Manual vs Auto-run
 
 The default mode is manual run. Use `Kotlin Worksheet: Run` when you want to evaluate the worksheet.
 
 To auto-run worksheets after save:
 
-- Click the `Kotlin WS Manual` status bar item while a `.worksheet.kts` file is active, or
+- Click the `Kotlin WS Manual` status bar item while a `.worksheet.kts` or `.worksheet.kt` file is active, or
 - Run `Kotlin Worksheet: Toggle Run On Save`, or
 - Set:
 

@@ -4,9 +4,11 @@ Evaluate Kotlin worksheet files in VS Code.
 
 [Install from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet)
 
-Files ending in `.worksheet.kts` can be run with `Kotlin Worksheet: Run`. Use
+Files ending in `.worksheet.kts` or `.worksheet.kt` can be run with `Kotlin Worksheet: Run`. Use
 `Run Selection` or `Run Current Block` to evaluate focused code without
-disturbing unrelated results. Run-on-save is available as an optional setting.
+disturbing unrelated results. Hover over any evaluated expression to preview
+its result, inspect large/truncated outputs in a side-by-side tab, or copy the
+result to the clipboard. Run-on-save is available as an optional setting.
 
 ```kotlin
 val x = 40 // => 40
@@ -18,7 +20,7 @@ println("hello") // => hello
 
 - VS Code 1.100 or newer
 - A local Kotlin compiler on PATH, or configure `kotlinWorksheet.kotlinCommand`
-- Kotlin syntax highlighting from a Kotlin language extension. This extension packs `fwcd.kotlin`.
+- Kotlin syntax highlighting is bundled out-of-the-box. For language server features like autocomplete and go-to-definition, the official JetBrains Kotlin extension (`jetbrains.kotlin-server`) is recommended.
 
 Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
 Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle classpath resolution, or automatic detection.
@@ -67,17 +69,17 @@ Install from the Visual Studio Marketplace:
 1. Open [Kotlin Worksheet on the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet).
 2. Click `Install`.
 3. Open a trusted workspace in VS Code.
-4. Create a file ending in `.worksheet.kts`.
+4. Create a file ending in `.worksheet.kts` or `.worksheet.kt`.
 5. Run `Kotlin Worksheet: Run`.
 
 Install from a local VSIX if you are testing an unreleased build:
 
-1. Download or build `kotlin-worksheet-0.7.0.vsix`.
+1. Download or build `kotlin-worksheet-0.8.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.7.0.vsix`.
+4. Select `kotlin-worksheet-0.8.0.vsix`.
 5. Open a trusted workspace.
-6. Create a file ending in `.worksheet.kts`.
+6. Create a file ending in `.worksheet.kts` or `.worksheet.kt`.
 7. Run `Kotlin Worksheet: Run`.
 
 Install the Kotlin compiler if `kotlinc -version` does not work in your terminal. After installing Kotlin, restart VS Code so the extension can see the updated PATH.
@@ -88,6 +90,8 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `Kotlin Worksheet: Run Selection`
 - `Kotlin Worksheet: Run Current Block`
 - `Kotlin Worksheet: Clear Results`
+- `Kotlin Worksheet: Inspect Result`
+- `Kotlin Worksheet: Copy Result`
 - `Kotlin Worksheet: New Worksheet`
 - `Kotlin Worksheet: Toggle Run On Save`
 - `Kotlin Worksheet: Toggle Render Mode`
@@ -98,7 +102,7 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 ## Settings
 
 - `kotlinWorksheet.kotlinCommand`: command used to run Kotlin scripts, default `kotlinc`
-- `kotlinWorksheet.runOnSave`: run `.worksheet.kts` files on save, default `false`
+- `kotlinWorksheet.runOnSave`: run `.worksheet.kts` or `.worksheet.kt` files on save, default `false`
 - `kotlinWorksheet.renderMode`: show results as `inlineComments` or `decorations`, default `inlineComments`
 - `kotlinWorksheet.executionMode`: choose `auto`, `localKotlinc`, or `gradleClasspath`, default `auto`
 - `kotlinWorksheet.gradleClasspathCache.enabled`: cache successful Gradle classpath resolutions, default `true`

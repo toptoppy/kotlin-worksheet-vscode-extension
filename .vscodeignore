@@ -7,6 +7,7 @@ docs/superpowers/**
 graphify-out/**
 .gitignore
 *.worksheet.kts
+*.worksheet.kt
 *.zip
 wskts.png
 assets/kotlin-worksheet-icon.png

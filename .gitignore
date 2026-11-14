@@ -7,6 +7,7 @@ build/
 wskts.png
 assets/kotlin-worksheet-icon.png
 /*.worksheet.kts
+/*.worksheet.kt
 .vscode-test/
 coverage/
 .code-review-graph/

@@ -54,16 +54,19 @@ through the project's runtime classpath.
 
 Goal: support broader Kotlin syntax without producing misleading results.
 
-- [ ] Display function declaration signatures.
-- [ ] Analyze extension, generic, and suspend function declarations.
-- [ ] Improve nested destructuring and complex declaration results.
-- [ ] Support more lambda and function-reference cases.
-- [ ] Add diagnostics for unsupported syntax.
+- [x] Display function declaration signatures.
+- [x] Analyze extension, generic, and suspend function declarations.
+- [x] Improve multiline destructuring and complex declaration results.
+- [x] Support more lambda and function-reference cases.
+- [x] Add diagnostics for unsupported syntax that appears result-worthy but
+  cannot be classified.
+- [x] Support `.worksheet.kt` alongside `.worksheet.kts`.
+- [x] Decouple from `fwcd.kotlin` and bundle standalone TextMate grammar.
+- [x] Add interactive result hovers, full output inspector, and copy command.
+- [x] Add interactive template worksheets and one-click Export to Kotlin/Test.
 - [ ] Improve standalone external dependency configuration.
 - [ ] Improve performance for large worksheets.
 - [ ] Add more Kotlin syntax fixtures and compatibility tests.
-- [ ] Decide whether `.worksheet.kt` support is required after `.worksheet.kts`
-  behavior is stable.
 
 Exit criteria: supported Kotlin behavior is documented and unsupported cases
 are explicit.

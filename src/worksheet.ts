@@ -1,10 +1,13 @@
 export const WORKSHEET_SUFFIX = ".worksheet.kts";
+export const WORKSHEET_SUFFIXES = [".worksheet.kts", ".worksheet.kt"] as const;
+export const WORKSHEET_SUFFIX_DESCRIPTION = ".worksheet.kts or .worksheet.kt";
 export const RESULT_PREFIX = "=>";
 
 export interface InstrumentedWorksheet {
   script: string;
   markerPrefix: string;
   generatedLineToSourceLine: number[];
+  diagnostics: WorksheetDiagnostic[];
 }
 
 export interface WorksheetRange {
@@ -33,7 +36,7 @@ export interface WorksheetResultOptions {
 }
 
 export function isWorksheetPath(fileName: string): boolean {
-  return fileName.endsWith(WORKSHEET_SUFFIX);
+  return WORKSHEET_SUFFIXES.some((suffix) => fileName.endsWith(suffix));
 }
 
 export function stripResultComments(text: string): string {
@@ -138,13 +141,15 @@ export function instrumentWorksheet(
   const lines = scanWorksheetLines(stripResultComments(text));
   const generated: string[] = [];
   const generatedLineToSourceLine: number[] = [];
+  const diagnostics: WorksheetDiagnostic[] = [];
   const functionContext = collectFunctionContext(lines);
-  const { functionTypes } = functionContext;
+  const functionSignatures = collectFunctionSignatures(lines);
+  const declarationExpressions = collectDeclarationResultExpressions(lines);
 
   let blockDepth = 0;
   let previousContinues = false;
   let pendingDeclaration: { expression: string; sourceLine: number; text: string[] } | undefined;
-  let pendingFunction: { sourceLine: number; type: string } | undefined;
+  let pendingFunction: { sourceLine: number; signature: string } | undefined;
   let pendingExpression: { sourceLine: number } | undefined;
 
   lines.forEach((line) => {
@@ -158,13 +163,13 @@ export function instrumentWorksheet(
       blockDepth === 0 &&
       !previousContinues &&
       isExecutableTopLevelLine(trimmed);
-    const functionType = statementStart && isFunctionDeclaration(trimmed)
-      ? functionTypes.get(sourceLine)
+    const functionSignature = statementStart && isFunctionDeclaration(trimmed)
+      ? functionSignatures.get(sourceLine)
       : undefined;
-    const declarationExpression = statementStart ? parseDeclarationResultExpression(trimmed) : undefined;
+    const declarationExpression = statementStart ? declarationExpressions.get(sourceLine) : undefined;
     const printableExpression = statementStart
       && !declarationExpression
-      && !functionType
+      && !functionSignature
       && isPrintableExpressionLine(line.text, trimmed);
 
     if (pendingFunction) {
@@ -192,8 +197,8 @@ export function instrumentWorksheet(
       generatedLineToSourceLine.push(sourceLine);
     }
 
-    if (functionType && !pendingFunction) {
-      pendingFunction = { sourceLine, type: functionType };
+    if (functionSignature && !pendingFunction) {
+      pendingFunction = { sourceLine, signature: functionSignature };
     }
 
     const nextBlockDepth = line.delimiterDepthAfter;
@@ -221,6 +226,7 @@ export function instrumentWorksheet(
           declarationExpression,
           line.text,
           functionContext,
+          diagnostics,
           options.resultRange,
         );
       } else {
@@ -235,6 +241,7 @@ export function instrumentWorksheet(
         pendingDeclaration.expression,
         [...pendingDeclaration.text, line.text].join("\n"),
         functionContext,
+        diagnostics,
         options.resultRange,
       );
       pendingDeclaration = undefined;
@@ -244,7 +251,7 @@ export function instrumentWorksheet(
 
     if (pendingFunction && nextBlockDepth === 0 && !nextContinues) {
       if (isResultLine(pendingFunction.sourceLine, options.resultRange)) {
-        pushStaticResult(generated, generatedLineToSourceLine, markerPrefix, pendingFunction.sourceLine, pendingFunction.type);
+        pushStaticResult(generated, generatedLineToSourceLine, markerPrefix, pendingFunction.sourceLine, pendingFunction.signature);
       }
       pendingFunction = undefined;
     }
@@ -257,6 +264,7 @@ export function instrumentWorksheet(
     script: generated.join("\n"),
     markerPrefix,
     generatedLineToSourceLine,
+    diagnostics,
   };
 }
 
@@ -414,13 +422,28 @@ export function findWorksheetStatements(textOrLines: string | string[]): Workshe
   return findWorksheetStatementsFromLines(lines);
 }
 
-function parseDeclarationResultExpression(trimmed: string): string | undefined {
-  const simpleName = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];
+function collectDeclarationResultExpressions(lines: WorksheetLine[]): Map<number, string> {
+  const expressions = new Map<number, string>();
+  for (const statement of findWorksheetStatementsFromLines(lines)) {
+    const declaration = lines
+      .slice(statement.startLine - 1, statement.endLine)
+      .map((line) => line.trimmed)
+      .join(" ");
+    const expression = parseDeclarationResultExpression(declaration);
+    if (expression) {
+      expressions.set(statement.startLine, expression);
+    }
+  }
+  return expressions;
+}
+
+function parseDeclarationResultExpression(declaration: string): string | undefined {
+  const simpleName = /^(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(declaration)?.[1];
   if (simpleName) {
     return simpleName;
   }
 
-  const destructuredNames = /^(?:val|var)\s+\(([^()]*)\)\s*(?::[^=]+)?=/.exec(trimmed)?.[1]
+  const destructuredNames = /^(?:val|var)\s*\(([\s\S]*?)\)\s*(?::[^=]+)?=/.exec(declaration)?.[1]
     ?.split(",")
     .map((name) => name.trim())
     .filter((name) => name !== "_");
@@ -473,6 +496,7 @@ interface FunctionContext {
   classFunctionTypes: Map<string, string>;
   constructorTypes: Map<string, string>;
   memberFunctionTypes: Map<string, string>;
+  propertyNames: Set<string>;
 }
 
 function collectFunctionContext(lines: WorksheetLine[]): FunctionContext {
@@ -538,6 +562,26 @@ function collectFunctionTypes(lines: WorksheetLine[]): Map<number, string> {
   return functionTypes;
 }
 
+function collectFunctionSignatures(lines: WorksheetLine[]): Map<number, string> {
+  const signatures = new Map<number, string>();
+  for (const statement of findWorksheetStatementsFromLines(lines)) {
+    const firstLine = lines[statement.startLine - 1];
+    if (!firstLine || !isFunctionDeclaration(firstLine.trimmed)) {
+      continue;
+    }
+
+    const declaration = lines
+      .slice(statement.startLine - 1, statement.endLine)
+      .map((line) => line.trimmed)
+      .join(" ");
+    const signature = parseFunctionSignature(declaration);
+    if (signature) {
+      signatures.set(statement.startLine, signature);
+    }
+  }
+  return signatures;
+}
+
 function collectFunctionNames(lines: WorksheetLine[], functionTypes: Map<number, string>): Map<string, string> {
   const names = new Map<string, string>();
   for (const [line, type] of functionTypes) {
@@ -597,6 +641,23 @@ function parseFunctionType(declaration: string): string | undefined {
   const receiver = receiverEnd >= 0 ? normalizeTypeText(beforeParameters.slice(0, receiverEnd)) : "";
   const isSuspend = /\bsuspend\s+fun\b/.test(declaration.slice(0, funIndex + 3));
   return canonicalizeTypeText(`${isSuspend ? "suspend " : ""}${receiver ? `${receiver}.` : ""}(${parameters.join(", ")}) -> ${returnType}`);
+}
+
+function parseFunctionSignature(declaration: string): string | undefined {
+  const funIndex = declaration.search(/\bfun\b/);
+  if (funIndex < 0) {
+    return undefined;
+  }
+
+  const prefix = declaration.slice(0, funIndex + 3);
+  const functionText = declaration.slice(funIndex + 3).trim();
+  const bodyStart = findTopLevelBodyStart(functionText);
+  const signature = (bodyStart >= 0 ? functionText.slice(0, bodyStart) : functionText)
+    .replace(/\s+/g, " ")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .trim();
+  return signature ? `${prefix} ${signature}`.trim() : undefined;
 }
 
 function findMatchingDelimiter(text: string, start: number, open: string, close: string): number {
@@ -661,6 +722,9 @@ function inferDeclarationFunctionType(declaration: string, context: FunctionCont
   if (declaredType && isFunctionValueInitializer(initializer, context)) {
     return declaredType;
   }
+  if (declaredType && isFunctionTypeText(declaredType) && isCallableReferenceInitializer(initializer)) {
+    return declaredType;
+  }
 
   const callableReference = resolveCallableReference(initializer, context);
   if (callableReference) {
@@ -710,11 +774,12 @@ function inferCalledFunctionReturnType(
 
 function collectClassMetadata(lines: WorksheetLine[]): Pick<
   FunctionContext,
-  "classFunctionTypes" | "constructorTypes" | "memberFunctionTypes"
+  "classFunctionTypes" | "constructorTypes" | "memberFunctionTypes" | "propertyNames"
 > {
   const classFunctionTypes = new Map<string, string>();
   const constructorTypes = new Map<string, string>();
   const memberFunctionTypes = new Map<string, string>();
+  const propertyNames = new Set<string>();
 
   for (const statement of findWorksheetStatementsFromLines(lines)) {
     const declaration = lines
@@ -732,12 +797,19 @@ function collectClassMetadata(lines: WorksheetLine[]): Pick<
     if (constructorStart >= 0) {
       const constructorEnd = findMatchingDelimiter(header, constructorStart, "(", ")");
       if (constructorEnd >= 0) {
-        const parameters = splitTopLevel(header.slice(constructorStart + 1, constructorEnd))
+        const constructorParameters = splitTopLevel(header.slice(constructorStart + 1, constructorEnd));
+        const parameters = constructorParameters
           .map(parseParameterType)
           .filter((parameter): parameter is string => Boolean(parameter));
-        const parameterCount = splitTopLevel(header.slice(constructorStart + 1, constructorEnd)).filter(Boolean).length;
+        const parameterCount = constructorParameters.filter(Boolean).length;
         if (parameters.length === parameterCount) {
           constructorTypes.set(className, `(${parameters.join(", ")}) -> ${className}`);
+        }
+        for (const parameter of constructorParameters) {
+          const propertyName = /^(?:(?:public|private|protected|internal|override|open|final|vararg)\s+)*(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(parameter.trim())?.[1];
+          if (propertyName) {
+            propertyNames.add(`${className}.${propertyName}`);
+          }
         }
       }
     }
@@ -765,7 +837,7 @@ function collectClassMetadata(lines: WorksheetLine[]): Pick<
     }
   }
 
-  return { classFunctionTypes, constructorTypes, memberFunctionTypes };
+  return { classFunctionTypes, constructorTypes, memberFunctionTypes, propertyNames };
 }
 
 function isFunctionDeclaration(text: string): boolean {
@@ -776,7 +848,24 @@ function parseFunctionName(text: string | undefined): string | undefined {
   if (!text || !isFunctionDeclaration(text)) {
     return undefined;
   }
-  return /\bfun\s+(?:<[^>]+>\s*)?([A-Za-z_][A-Za-z0-9_]*)/.exec(text.trim())?.[1];
+
+  const funIndex = text.search(/\bfun\b/);
+  let declaration = text.slice(funIndex + 3).trim();
+  if (declaration.startsWith("<")) {
+    const genericEnd = findMatchingAngleDelimiter(declaration, 0);
+    if (genericEnd < 0) {
+      return undefined;
+    }
+    declaration = declaration.slice(genericEnd + 1).trim();
+  }
+
+  const openParen = declaration.indexOf("(");
+  if (openParen < 0) {
+    return undefined;
+  }
+  const qualifiedName = declaration.slice(0, openParen).trim();
+  const name = qualifiedName.slice(qualifiedName.lastIndexOf(".") + 1);
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : undefined;
 }
 
 function parseDeclaredType(declaration: string): string | undefined {
@@ -819,13 +908,22 @@ function isFunctionValueInitializer(initializer: string, context: FunctionContex
   return Boolean(returnType && isFunctionTypeText(returnType));
 }
 
+function isCallableReferenceInitializer(initializer: string): boolean {
+  return /^(?:::|.+::)[A-Za-z_][A-Za-z0-9_]*$/.test(initializer.trim());
+}
+
+function isKnownPropertyReference(initializer: string, context: FunctionContext): boolean {
+  const qualified = /^(.+)::([A-Za-z_][A-Za-z0-9_]*)$/.exec(initializer.trim());
+  return Boolean(qualified && context.propertyNames.has(`${qualified[1]}.${qualified[2]}`));
+}
+
 function resolveCallableReference(initializer: string, context: FunctionContext): string | undefined {
   const bareName = /^::([A-Za-z_][A-Za-z0-9_]*)$/.exec(initializer)?.[1];
   if (bareName) {
     return context.functionNames.get(bareName) ?? context.constructorTypes.get(bareName);
   }
 
-  const qualified = /^([A-Za-z_][A-Za-z0-9_.]*)::([A-Za-z_][A-Za-z0-9_]*)$/.exec(initializer);
+  const qualified = /^(.+)::([A-Za-z_][A-Za-z0-9_]*)$/.exec(initializer);
   if (!qualified) {
     return undefined;
   }
@@ -837,7 +935,12 @@ function resolveCallableReference(initializer: string, context: FunctionContext)
     const boundMember = receiverType
       ? context.memberFunctionTypes.get(`${receiverType}.${qualified[2]}`)
       : undefined;
-    return boundMember;
+    if (boundMember) {
+      return boundMember;
+    }
+
+    const extensionFunction = context.functionNames.get(qualified[2]);
+    return extensionFunction ? prependExtensionReceiver(receiver, extensionFunction) : undefined;
   }
 
   return prependFunctionReceiver(receiver, member);
@@ -859,6 +962,83 @@ function prependFunctionReceiver(receiver: string, functionType: string): string
   }
   const parameterText = parameters.slice(open + 1, close).trim();
   return `${suspend}(${receiver}${parameterText ? `, ${parameterText}` : ""}) -> ${returnType}`;
+}
+
+function prependExtensionReceiver(receiver: string, functionType: string): string | undefined {
+  const suspend = functionType.startsWith("suspend ") ? "suspend " : "";
+  const type = suspend ? functionType.slice(suspend.length) : functionType;
+  const receiverEnd = type.lastIndexOf(".(");
+  const arrow = findTopLevelArrow(type);
+  if (receiverEnd < 0 || arrow < 0) {
+    return undefined;
+  }
+
+  const extensionReceiver = type.slice(0, receiverEnd).trim();
+  const substitutions = matchGenericTypeArguments(extensionReceiver, receiver);
+  if (!substitutions) {
+    return undefined;
+  }
+
+  const specializedType = substituteTypeParameters(type, substitutions);
+  const specializedArrow = findTopLevelArrow(specializedType);
+  const specializedReceiverEnd = specializedType.lastIndexOf(".(");
+  if (specializedArrow < 0 || specializedReceiverEnd < 0) {
+    return undefined;
+  }
+
+  const open = specializedReceiverEnd + 1;
+  const close = findMatchingDelimiter(specializedType, open, "(", ")");
+  if (close < 0 || close > specializedArrow) {
+    return undefined;
+  }
+
+  const parameters = specializedType.slice(open + 1, close).trim();
+  const returnType = specializedType.slice(specializedArrow + 2).trim();
+  return canonicalizeTypeText(`${suspend}(${receiver}${parameters ? `, ${parameters}` : ""}) -> ${returnType}`);
+}
+
+function matchGenericTypeArguments(
+  pattern: string,
+  actual: string,
+): Map<string, string> | undefined {
+  const patternOpen = pattern.indexOf("<");
+  const actualOpen = actual.indexOf("<");
+  if (patternOpen < 0 || actualOpen < 0) {
+    return canonicalizeTypeText(pattern) === canonicalizeTypeText(actual) ? new Map() : undefined;
+  }
+
+  const patternClose = findMatchingAngleDelimiter(pattern, patternOpen);
+  const actualClose = findMatchingAngleDelimiter(actual, actualOpen);
+  if (patternClose !== pattern.length - 1 || actualClose !== actual.length - 1) {
+    return undefined;
+  }
+
+  const patternClassifier = pattern.slice(0, patternOpen).trim();
+  const actualClassifier = actual.slice(0, actualOpen).trim();
+  const patternArguments = splitTopLevel(pattern.slice(patternOpen + 1, patternClose)).map((part) => part.trim());
+  const actualArguments = splitTopLevel(actual.slice(actualOpen + 1, actualClose)).map((part) => part.trim());
+  if (patternClassifier !== actualClassifier || patternArguments.length !== actualArguments.length) {
+    return undefined;
+  }
+
+  const substitutions = new Map<string, string>();
+  let mismatch = false;
+  patternArguments.forEach((argument, index) => {
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(argument)) {
+      substitutions.set(argument, actualArguments[index]);
+    } else if (canonicalizeTypeText(argument) !== canonicalizeTypeText(actualArguments[index])) {
+      mismatch = true;
+    }
+  });
+  return mismatch ? undefined : substitutions;
+}
+
+function substituteTypeParameters(type: string, substitutions: Map<string, string>): string {
+  let result = type;
+  for (const [parameter, argument] of substitutions) {
+    result = result.replace(new RegExp(`\\b${parameter}\\b`, "g"), argument);
+  }
+  return result;
 }
 
 function inferLambdaFunctionType(initializer: string, context: FunctionContext): string | undefined {
@@ -1288,6 +1468,7 @@ function pushDeclarationResult(
   expression: string,
   declarationText: string,
   functionContext: FunctionContext,
+  diagnostics: WorksheetDiagnostic[],
   resultRange?: WorksheetRange,
 ): void {
   if (!isResultLine(sourceLine, resultRange)) {
@@ -1298,6 +1479,35 @@ function pushDeclarationResult(
     ?? inferDeclarationFunctionType(declarationText, functionContext);
   if (staticType) {
     pushStaticResult(generated, generatedLineToSourceLine, markerPrefix, sourceLine, staticType);
+    return;
+  }
+
+  const initializer = parseDeclarationInitializer(declarationText);
+  if (
+    initializer &&
+    isCallableReferenceInitializer(initializer) &&
+    !isKnownPropertyReference(initializer, functionContext)
+  ) {
+    diagnostics.push({
+      sourceLine,
+      sourceColumn: 1,
+      severity: "warning",
+      message: "Kotlin Worksheet could not infer the function reference type; add an explicit function type or use a same-worksheet function declaration.",
+    });
+    return;
+  }
+
+  if (
+    initializer &&
+    /^\{[\s\S]*\}$/.test(initializer) &&
+    !parseDeclaredType(declarationText)
+  ) {
+    diagnostics.push({
+      sourceLine,
+      sourceColumn: 1,
+      severity: "warning",
+      message: "Kotlin Worksheet could not infer the function value type; add parameter or return type information to display its function type.",
+    });
     return;
   }
 
@@ -1375,4 +1585,300 @@ function stripTrailingLineComment(line: string): string {
 
 function findLineCommentIndex(line: string): number {
   return scanKotlinLine(line, createLexicalState(), 0).lineCommentIndex;
+}
+
+export interface WorksheetTemplate {
+  id: string;
+  label: string;
+  description: string;
+  content: string;
+}
+
+export const WORKSHEET_TEMPLATES: readonly WorksheetTemplate[] = [
+  {
+    id: "blank",
+    label: "Blank Worksheet",
+    description: "Minimal starter worksheet with simple expression evaluation",
+    content: [
+      "val language = \"Kotlin\"",
+      "language.uppercase()",
+      "",
+      "val answer = 40 + 2",
+      "answer",
+      "",
+      "println(\"worksheets run top to bottom\")",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "fundamentals",
+    label: "Kotlin Fundamentals",
+    description: "Data classes, destructuring, and null-safety",
+    content: [
+      "data class User(val id: Int, val name: String, val role: String = \"member\")",
+      "",
+      "val user = User(1, \"Ada Lovelace\", \"admin\")",
+      "user.name",
+      "",
+      "// Destructuring declarations",
+      "val (id, name, role) = user",
+      "\"User #$id: $name ($role)\"",
+      "",
+      "// Safe call and Elvis operator",
+      "val nickname: String? = null",
+      "val displayName = nickname ?: name",
+      "displayName",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "collections",
+    label: "Collections & Sequences",
+    description: "Filtering, mapping, grouping, and lazy sequences",
+    content: [
+      "val numbers = (1..10).toList()",
+      "",
+      "val evenSquares = numbers",
+      "    .filter { it % 2 == 0 }",
+      "    .map { it * it }",
+      "evenSquares",
+      "",
+      "val fruits = listOf(\"apple\", \"banana\", \"apricot\", \"blueberry\", \"cherry\")",
+      "val grouped = fruits.groupBy { it.first() }",
+      "grouped",
+      "",
+      "// Lazy sequence evaluation",
+      "val powersOfTwo = generateSequence(1) { it * 2 }",
+      "    .take(8)",
+      "    .toList()",
+      "powersOfTwo",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "coroutines",
+    label: "Coroutines & Flow",
+    description: "Async/await patterns and reactive Flow streams",
+    content: [
+      "// Note: Requires kotlinx-coroutines-core in project dependencies",
+      "import kotlinx.coroutines.*",
+      "import kotlinx.coroutines.flow.*",
+      "",
+      "runBlocking {",
+      "    val deferred = async {",
+      "        delay(10)",
+      "        \"computed asynchronously\"",
+      "    }",
+      "    val message = deferred.await()",
+      "    println(message)",
+      "",
+      "    val items = flowOf(1, 2, 3)",
+      "        .map { it * 10 }",
+      "        .toList()",
+      "    items",
+      "}",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "arrow",
+    label: "Arrow-kt Functional",
+    description: "Typed functional error handling with Either and Option",
+    content: [
+      "// Note: Requires arrow-core in project dependencies",
+      "import arrow.core.Either",
+      "import arrow.core.left",
+      "import arrow.core.right",
+      "",
+      "fun divide(a: Int, b: Int): Either<String, Int> =",
+      "    if (b == 0) \"Division by zero\".left() else (a / b).right()",
+      "",
+      "val success = divide(10, 2)",
+      "val failure = divide(10, 0)",
+      "",
+      "val mapped = success.map { it * 10 }",
+      "mapped",
+      "",
+    ].join("\n"),
+  },
+];
+
+export function exportToKotlinFile(source: string): string {
+  const cleaned = stripResultComments(source).trimEnd();
+  if (!cleaned.trim()) {
+    return "";
+  }
+
+  if (/\bfun\s+main\s*\(/.test(cleaned)) {
+    return `${cleaned}\n`;
+  }
+
+  const lines = splitLines(cleaned);
+  const packages: string[] = [];
+  const imports: string[] = [];
+  const topLevelDeclarations: string[] = [];
+  const statements: string[] = [];
+
+  const rawStatements = findWorksheetStatements(cleaned);
+  const statementsByStart = new Map<number, WorksheetStatement>();
+  for (const stmt of rawStatements) {
+    statementsByStart.set(stmt.startLine, stmt);
+  }
+
+  let lineIdx = 0;
+  while (lineIdx < lines.length) {
+    const line = lines[lineIdx];
+    const trimmed = line.trim();
+    const sourceLine = lineIdx + 1;
+
+    if (!trimmed) {
+      lineIdx++;
+      continue;
+    }
+
+    if (trimmed.startsWith("package ") && !trimmed.includes("{")) {
+      packages.push(line);
+      lineIdx++;
+      continue;
+    }
+
+    if (trimmed.startsWith("import ")) {
+      imports.push(line);
+      lineIdx++;
+      continue;
+    }
+
+    const stmt = statementsByStart.get(sourceLine);
+    const endLine = stmt ? stmt.endLine : sourceLine;
+    const stmtLines = lines.slice(lineIdx, endLine);
+    const stmtText = stmtLines.join("\n");
+
+    const isTopDecl = /^(?:(?:public|private|protected|internal|abstract|final|open|sealed|data|inline|annotation|enum)\s+)*(?:class|interface|object|enum\s+class|fun\s+)/.test(trimmed);
+
+    if (isTopDecl) {
+      topLevelDeclarations.push(stmtText);
+    } else {
+      statements.push(stmtText);
+    }
+
+    lineIdx = endLine;
+  }
+
+  const parts: string[] = [];
+  if (packages.length > 0) {
+    parts.push(packages.join("\n"));
+  }
+  if (imports.length > 0) {
+    parts.push(imports.join("\n"));
+  }
+  if (topLevelDeclarations.length > 0) {
+    parts.push(topLevelDeclarations.join("\n\n"));
+  }
+  if (statements.length > 0) {
+    const indented = statements
+      .flatMap((s) => splitLines(s).map((l) => (l ? `    ${l}` : "")))
+      .join("\n");
+    parts.push(`fun main() {\n${indented}\n}`);
+  }
+
+  return `${parts.join("\n\n").trimEnd()}\n`;
+}
+
+export function exportToTestFile(
+  source: string,
+  results?: Map<number, string>,
+  options?: { className?: string },
+): string {
+  const effectiveResults = results ?? parseWorksheetResults(source);
+  const cleaned = stripResultComments(source).trimEnd();
+  const className = options?.className ?? "WorksheetGeneratedTest";
+
+  const lines = splitLines(cleaned);
+  const packages: string[] = [];
+  const imports: Set<string> = new Set(["import kotlin.test.Test", "import kotlin.test.assertEquals"]);
+  const topLevelDeclarations: string[] = [];
+  const testBodyStatements: string[] = [];
+
+  const rawStatements = findWorksheetStatements(cleaned);
+  const statementsByStart = new Map<number, WorksheetStatement>();
+  for (const stmt of rawStatements) {
+    statementsByStart.set(stmt.startLine, stmt);
+  }
+
+  let lineIdx = 0;
+  while (lineIdx < lines.length) {
+    const line = lines[lineIdx];
+    const trimmed = line.trim();
+    const sourceLine = lineIdx + 1;
+
+    if (!trimmed) {
+      lineIdx++;
+      continue;
+    }
+
+    if (trimmed.startsWith("package ") && !trimmed.includes("{")) {
+      packages.push(line);
+      lineIdx++;
+      continue;
+    }
+
+    if (trimmed.startsWith("import ")) {
+      imports.add(trimmed);
+      lineIdx++;
+      continue;
+    }
+
+    const stmt = statementsByStart.get(sourceLine);
+    const endLine = stmt ? stmt.endLine : sourceLine;
+    const stmtLines = lines.slice(lineIdx, endLine);
+    const stmtText = stmtLines.join("\n");
+
+    const isTopDecl = /^(?:(?:public|private|protected|internal|abstract|final|open|sealed|data|inline|annotation|enum)\s+)*(?:class|interface|object|enum\s+class|fun\s+)/.test(trimmed);
+
+    if (isTopDecl) {
+      topLevelDeclarations.push(stmtText);
+    } else {
+      const result = effectiveResults.get(endLine);
+      if (result && !result.startsWith("fun ") && !result.includes("->")) {
+        const valMatch = /^val\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=/.exec(trimmed);
+        if (valMatch) {
+          testBodyStatements.push(stmtText);
+          testBodyStatements.push(`assertEquals(${JSON.stringify(result)}, (${valMatch[1]}).toString())`);
+        } else if (!trimmed.startsWith("println(") && !trimmed.startsWith("print(")) {
+          testBodyStatements.push(`assertEquals(${JSON.stringify(result)}, (${stmtText}).toString())`);
+        } else {
+          testBodyStatements.push(stmtText);
+        }
+      } else {
+        testBodyStatements.push(stmtText);
+      }
+    }
+
+    lineIdx = endLine;
+  }
+
+  const parts: string[] = [];
+  if (packages.length > 0) {
+    parts.push(packages.join("\n"));
+  }
+  parts.push(Array.from(imports).join("\n"));
+  if (topLevelDeclarations.length > 0) {
+    parts.push(topLevelDeclarations.join("\n\n"));
+  }
+
+  const indentedBody = testBodyStatements.length > 0
+    ? testBodyStatements.flatMap((s) => splitLines(s).map((l) => (l ? `        ${l}` : ""))).join("\n")
+    : "        // Worksheet executed with no assertions";
+
+  const classDef = [
+    `class ${className} {`,
+    "    @Test",
+    "    fun testWorksheetOutputs() {",
+    indentedBody,
+    "    }",
+    "}",
+  ].join("\n");
+
+  parts.push(classDef);
+  return `${parts.join("\n\n").trimEnd()}\n`;
 }

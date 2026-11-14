@@ -6,14 +6,29 @@ import {
   parseWorksheetOutputDetails,
   formatWorksheetResult,
   instrumentWorksheet,
+  isWorksheetPath,
   isWorksheetResultTruncated,
   parseKotlinDiagnostics,
   parseWorksheetOutput,
   stripResultComments,
   stripWorksheetMarkers,
+  WORKSHEET_SUFFIXES,
+  WORKSHEET_TEMPLATES,
+  exportToKotlinFile,
+  exportToTestFile,
 } from "../src/worksheet.js";
 
 describe("worksheet text handling", () => {
+  it("recognizes both .worksheet.kts and .worksheet.kt file paths", () => {
+    expect(WORKSHEET_SUFFIXES).toEqual([".worksheet.kts", ".worksheet.kt"]);
+    expect(isWorksheetPath("demo.worksheet.kts")).toBe(true);
+    expect(isWorksheetPath("/path/to/my.worksheet.kt")).toBe(true);
+    expect(isWorksheetPath("C:\\projects\\test.worksheet.kts")).toBe(true);
+    expect(isWorksheetPath("C:\\projects\\test.worksheet.kt")).toBe(true);
+    expect(isWorksheetPath("Main.kt")).toBe(false);
+    expect(isWorksheetPath("script.kts")).toBe(false);
+    expect(isWorksheetPath("demo.worksheet.kts.bak")).toBe(false);
+  });
   it("strips only extension result comments", () => {
     const source = [
       "val a = 1 // => 1",
@@ -219,6 +234,17 @@ describe("worksheet instrumentation", () => {
     ].join("\n"));
   });
 
+  it("prints multiline destructuring declarations with nested values", () => {
+    const instrumented = instrumentWorksheet([
+      "val (",
+      "  name,",
+      "  scores",
+      ") = Pair(\"Ada\", listOf(90, 100))",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain('println(listOf(name, scores))');
+  });
+
   it("classifies function declarations, references, lambdas, and values", () => {
     const instrumented = instrumentWorksheet([
       "fun foo(x: Int): String = x.toString()",
@@ -244,13 +270,98 @@ describe("worksheet instrumentation", () => {
     expect(instrumented.script).not.toContain("println(multiply)");
   });
 
-  it("renders modifier-prefixed function declarations", () => {
+  it("renders modifier-prefixed function declaration signatures", () => {
     const instrumented = instrumentWorksheet(
       "suspend fun fetch(id: String): String = id",
       "__MARKER__:",
     );
 
-    expect(instrumented.script).toContain('println("suspend (String) -> String")');
+    expect(instrumented.script).toContain('println("suspend fun fetch(id: String): String")');
+  });
+
+  it("renders function declaration signatures instead of callable types", () => {
+    const instrumented = instrumentWorksheet(
+      "fun greet(name: String, excited: Boolean): String = if (excited) \"Hello, $name!\" else \"Hello, $name\"",
+      "__MARKER__:",
+    );
+
+    expect(instrumented.script).toContain('println("fun greet(name: String, excited: Boolean): String")');
+    expect(instrumented.script).not.toContain('println("(String, Boolean) -> String")');
+  });
+
+  it("normalizes whitespace in multiline function signatures", () => {
+    const instrumented = instrumentWorksheet([
+      "fun combine(",
+      "  left: String,",
+      "  right: String",
+      "): String = left + right",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain('println("fun combine(left: String, right: String): String")');
+  });
+
+  it("analyzes references to same-worksheet extension functions", () => {
+    const instrumented = instrumentWorksheet([
+      "fun String.wordCount(): Int = length",
+      "val countWords = String::wordCount",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain('println("(String) -> Int")');
+  });
+
+  it("specializes generic extension references from their receiver type", () => {
+    const instrumented = instrumentWorksheet([
+      "fun <T> List<T>.firstOrDefault(default: T): T = firstOrNull() ?: default",
+      "val stringFirstOrDefault: (List<String>, String) -> String = List<String>::firstOrDefault",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.script).toContain('println("(List<String>, String) -> String")');
+  });
+
+  it("warns when an external function reference has no inferable type", () => {
+    const instrumented = instrumentWorksheet("val parseInt = String::toInt", "__MARKER__:");
+
+    expect(instrumented.diagnostics).toEqual([{
+      sourceLine: 1,
+      sourceColumn: 1,
+      severity: "warning",
+      message: expect.stringContaining("could not infer the function reference type"),
+    }]);
+    expect(instrumented.script).not.toContain("println(parseInt)");
+  });
+
+  it("uses an explicit type for an external function reference", () => {
+    const instrumented = instrumentWorksheet(
+      "val parseInt: (String) -> Int = String::toInt",
+      "__MARKER__:",
+    );
+
+    expect(instrumented.script).toContain('println("(String) -> Int")');
+    expect(instrumented.diagnostics).toEqual([]);
+  });
+
+  it("warns when a lambda function value has an uninferred return type", () => {
+    const instrumented = instrumentWorksheet('val home = { System.getenv("HOME") }', "__MARKER__:");
+
+    expect(instrumented.diagnostics).toEqual([{
+      sourceLine: 1,
+      sourceColumn: 1,
+      severity: "warning",
+      message: expect.stringContaining("could not infer the function value type"),
+    }]);
+    expect(instrumented.script).not.toContain("println(home)");
+  });
+
+  it("keeps ordinary control flow and known property references quiet", () => {
+    const instrumented = instrumentWorksheet([
+      "data class Person(val name: String)",
+      "val personName = Person::name",
+      "if (personName(Person(\"Ada\")) == \"Ada\") println(\"matched\")",
+    ].join("\n"), "__MARKER__:");
+
+    expect(instrumented.diagnostics).toEqual([]);
+    expect(instrumented.script).toContain("println(personName)");
+    expect(instrumented.script).toContain('println("matched")');
   });
 
   it("covers Kotlin function-type positives", () => {
@@ -502,5 +613,65 @@ describe("kotlin diagnostics parsing", () => {
         message: "additional context",
       },
     ]);
+  });
+});
+
+describe("worksheet export and templates", () => {
+  it("provides built-in templates with runnable code", () => {
+    expect(WORKSHEET_TEMPLATES.length).toBeGreaterThanOrEqual(4);
+    const ids = WORKSHEET_TEMPLATES.map((t) => t.id);
+    expect(ids).toContain("blank");
+    expect(ids).toContain("fundamentals");
+    expect(ids).toContain("collections");
+    expect(ids).toContain("coroutines");
+    expect(ids).toContain("arrow");
+  });
+
+  it("exports worksheet code to standard Kotlin file with fun main()", () => {
+    const worksheet = [
+      "package demo.app",
+      "",
+      "import java.time.Instant",
+      "",
+      "data class User(val name: String)",
+      "",
+      "fun greet(u: User) = \"Hello, ${u.name}\"",
+      "",
+      "val user = User(\"Ada\") // => User(name=Ada)",
+      "println(greet(user))",
+    ].join("\n");
+
+    const exported = exportToKotlinFile(worksheet);
+    expect(exported).toContain("package demo.app");
+    expect(exported).toContain("import java.time.Instant");
+    expect(exported).toContain("data class User(val name: String)");
+    expect(exported).toContain("fun greet(u: User) = \"Hello, ${u.name}\"");
+    expect(exported).toContain("fun main() {");
+    expect(exported).toContain("    val user = User(\"Ada\")");
+    expect(exported).toContain("    println(greet(user))");
+    expect(exported).not.toContain("// =>");
+  });
+
+  it("exports worksheet code to a Kotlin Test file with assertEquals", () => {
+    const worksheet = [
+      "package demo.test",
+      "",
+      "data class Item(val id: Int)",
+      "",
+      "val x = 40 + 2 // => 42",
+      "val item = Item(1) // => Item(id=1)",
+      "x * 2 // => 84",
+    ].join("\n");
+
+    const exported = exportToTestFile(worksheet);
+    expect(exported).toContain("package demo.test");
+    expect(exported).toContain("import kotlin.test.Test");
+    expect(exported).toContain("import kotlin.test.assertEquals");
+    expect(exported).toContain("class WorksheetGeneratedTest {");
+    expect(exported).toContain("@Test");
+    expect(exported).toContain("fun testWorksheetOutputs() {");
+    expect(exported).toContain('assertEquals("42", (x).toString())');
+    expect(exported).toContain('assertEquals("Item(id=1)", (item).toString())');
+    expect(exported).toContain('assertEquals("84", (x * 2).toString())');
   });
 });

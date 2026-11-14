@@ -23,7 +23,7 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.runtimeOutput).toBe("hello");
   }, 20000);
 
-  it("applies the v0.6.0 result classification rules", async () => {
+  it("applies worksheet result classification rules", async () => {
     const result = await executeWorksheet([
       "fun foo(x: Int): String = x.toString()",
       "val fooRef = ::foo",
@@ -34,12 +34,29 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
 
     expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
     expect(result.results).toEqual(new Map([
-      [1, "(Int) -> String"],
+      [1, "fun foo(x: Int): String"],
       [2, "(Int) -> String"],
       [3, "(Int) -> String"],
       [4, "10"],
     ]));
     expect(result.runtimeOutput).toBe("10");
+  }, 20000);
+
+  it("returns analyzer warnings without suppressing side effects", async () => {
+    const result = await executeWorksheet([
+      'val home = { System.getenv("HOME") }',
+      'if (true) { println("control flow") } else { println("unreachable") }',
+      'println("side effect")',
+    ].join("\n"), { kotlinCommand: "kotlinc", timeoutMs: 10000 });
+
+    expect(result.success).toBe(true);
+    expect(result.results.has(1)).toBe(false);
+    expect(result.runtimeOutput).toBe("control flow\nside effect");
+    expect(result.diagnostics).toEqual([expect.objectContaining({
+      sourceLine: 1,
+      severity: "warning",
+      message: expect.stringContaining("could not infer the function value type"),
+    })]);
   }, 20000);
 
   it("keeps function-type coverage boundaries valid at runtime", async () => {
@@ -88,8 +105,8 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     ].join("\n"), { kotlinCommand: "kotlinc", timeoutMs: 10000 });
 
     expect(result.success, result.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toBe(true);
-    expect(result.results.get(1)).toBe("(String) -> Result<Unit>");
-    expect(result.results.get(6)).toBe("(() -> Result<Unit>, () -> Result<Unit>) -> Result<String>");
+    expect(result.results.get(1)).toBe("fun deleteProduction(target: String): Result<Unit>");
+    expect(result.results.get(6)).toBe("fun orchestrationForDoomDay(dangerousThing: () -> Result<Unit>, anotherDangerousThing: () -> Result<Unit>): Result<String>");
     expect(result.results.get(20)).toBe("Success(All clear... for now.)");
     expect(result.runtimeOutput).toContain("Deleting production Database...");
     expect(result.runtimeOutput).toContain("Finished doing something dangerous.");
