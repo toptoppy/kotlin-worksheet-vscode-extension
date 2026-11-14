@@ -9,6 +9,8 @@ Files ending in `.worksheet.kts` or `.worksheet.kt` can be run with `Kotlin Work
 disturbing unrelated results. Hover over any evaluated expression to preview
 its result, inspect large/truncated outputs in a side-by-side tab, or copy the
 result to the clipboard. Run-on-save is available as an optional setting.
+A persistent compiler daemon ensures warm runs execute in milliseconds (<100ms).
+Standalone worksheets can dynamically pull dependencies from Maven Central via `@file:DependsOn`.
 
 ```kotlin
 val x = 40 // => 40
@@ -23,9 +25,10 @@ println("hello") // => hello
 - Kotlin syntax highlighting is bundled out-of-the-box. For language server features like autocomplete and go-to-definition, the official JetBrains Kotlin extension (`jetbrains.kotlin-server`) is recommended.
 
 Supported Kotlin compiler for CI and local examples: `kotlinc-jvm 2.4.0`.
-Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle classpath resolution, or automatic detection.
-Gradle-backed runs cache successful classpath resolutions and reuse them until Gradle build files or project sources change.
-The current support baseline is VS Code 1.100+, Kotlin 2.4.0, and macOS, Linux, or Windows. See the [support matrix](docs/user-guide.md#support-matrix) for Gradle limitations.
+Use `kotlinWorksheet.executionMode` to choose between local `kotlinc`, Gradle or Maven classpath resolution, or automatic detection.
+Gradle and Maven-backed runs cache successful classpath resolutions and reuse them until build files or project sources change.
+The persistent compiler daemon (`kotlinWorksheet.daemon.enabled`) keeps a warm JVM compiler worker alive for instant sub-second evaluations.
+The current support baseline is VS Code 1.100+, Kotlin 2.4.0, and macOS, Linux, or Windows. See the [support matrix](docs/user-guide.md#support-matrix) for build tool limitations.
 
 ## Set Up Kotlin
 
@@ -74,10 +77,10 @@ Install from the Visual Studio Marketplace:
 
 Install from a local VSIX if you are testing an unreleased build:
 
-1. Download or build `kotlin-worksheet-0.8.0.vsix`.
+1. Download or build `kotlin-worksheet-0.9.0.vsix`.
 2. Open VS Code.
 3. Run `Extensions: Install from VSIX...` from the Command Palette.
-4. Select `kotlin-worksheet-0.8.0.vsix`.
+4. Select `kotlin-worksheet-0.9.0.vsix`.
 5. Open a trusted workspace.
 6. Create a file ending in `.worksheet.kts` or `.worksheet.kt`.
 7. Run `Kotlin Worksheet: Run`.
@@ -93,29 +96,39 @@ Install the Kotlin compiler if `kotlinc -version` does not work in your terminal
 - `Kotlin Worksheet: Inspect Result`
 - `Kotlin Worksheet: Copy Result`
 - `Kotlin Worksheet: New Worksheet`
+- `Kotlin Worksheet: New Worksheet From Template...`
+- `Kotlin Worksheet: Export to Kotlin File`
+- `Kotlin Worksheet: Export to Test File`
 - `Kotlin Worksheet: Toggle Run On Save`
 - `Kotlin Worksheet: Toggle Render Mode`
 - `Kotlin Worksheet: Refresh Gradle Classpath`
+- `Kotlin Worksheet: Refresh Maven Classpath`
+- `Kotlin Worksheet: Restart Kotlin Daemon`
 - `Kotlin Worksheet: Check Environment`
 - `Kotlin Worksheet: Show Log`
 
 ## Settings
 
 - `kotlinWorksheet.kotlinCommand`: command used to run Kotlin scripts, default `kotlinc`
+- `kotlinWorksheet.executionMode`: choose `auto`, `localKotlinc`, `gradleClasspath`, or `mavenClasspath`, default `auto`
+- `kotlinWorksheet.daemon.enabled`: keep a warm compiler daemon running in the background for sub-second runs, default `true`
 - `kotlinWorksheet.runOnSave`: run `.worksheet.kts` or `.worksheet.kt` files on save, default `false`
 - `kotlinWorksheet.renderMode`: show results as `inlineComments` or `decorations`, default `inlineComments`
-- `kotlinWorksheet.executionMode`: choose `auto`, `localKotlinc`, or `gradleClasspath`, default `auto`
 - `kotlinWorksheet.gradleClasspathCache.enabled`: cache successful Gradle classpath resolutions, default `true`
+- `kotlinWorksheet.mavenClasspathCache.enabled`: cache successful Maven classpath resolutions, default `true`
 - `kotlinWorksheet.timeoutMs`: execution timeout in milliseconds, default `10000`
 - `kotlinWorksheet.maxResultLength`: maximum displayed result length, default `500`
 
 ## Performance
 
-The first Gradle-backed run may still be slow because Gradle must resolve and
+The first Gradle or Maven-backed run may be slower because the build tool must resolve and
 compile the project classpath. Repeated unchanged runs reuse the cached
 classpath and log whether the cache was a hit, miss, invalidation, or shared
-active request. Use `Kotlin Worksheet: Refresh Gradle Classpath` after changing
-generated outputs or when you want to force a fresh Gradle classpath.
+active request. Use `Kotlin Worksheet: Refresh Gradle Classpath` or `Refresh Maven Classpath`
+after changing dependencies or build files.
+
+With the persistent daemon enabled (`kotlinWorksheet.daemon.enabled: true`), warm
+worksheet executions run in under 100 milliseconds without the repeated JVM spin-up overhead.
 
 For the fastest simple worksheets, use `kotlinWorksheet.executionMode` set to
 `localKotlinc`, `kotlinWorksheet.renderMode` set to `decorations`, and run

@@ -13,7 +13,7 @@ export interface WorksheetRunState {
   status: WorksheetRunStatus;
   startedAt?: number;
   durationMs?: number;
-  executionMode?: "localKotlinc" | "gradleClasspath";
+  executionMode?: "localKotlinc" | "gradleClasspath" | "mavenClasspath";
 }
 
 export interface WorksheetRunHandle {
@@ -67,7 +67,7 @@ export class WorksheetRunRegistry {
     this.emit(uri);
   }
 
-  public setExecutionMode(uri: string, executionMode: "localKotlinc" | "gradleClasspath"): void {
+  public setExecutionMode(uri: string, executionMode: "localKotlinc" | "gradleClasspath" | "mavenClasspath"): void {
     const state = this.states.get(uri);
     if (!state || !this.activeRuns.has(uri)) {
       return;

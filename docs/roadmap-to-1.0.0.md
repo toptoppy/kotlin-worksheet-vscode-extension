@@ -50,9 +50,11 @@ JVM Gradle classpath integration.
 Exit criteria: a Kotlin JVM worksheet can import and execute Arrow-kt APIs
 through the project's runtime classpath.
 
-## v0.8.0: Kotlin Compatibility
+## v0.8.0: Modernization & Kotlin Compatibility
 
-Goal: support broader Kotlin syntax without producing misleading results.
+Goal: modernize the extension, decouple from legacy dependencies, support `.worksheet.kt`, and provide interactive result inspection.
+
+Status: Released in v0.8.0.
 
 - [x] Display function declaration signatures.
 - [x] Analyze extension, generic, and suspend function declarations.
@@ -64,26 +66,37 @@ Goal: support broader Kotlin syntax without producing misleading results.
 - [x] Decouple from `fwcd.kotlin` and bundle standalone TextMate grammar.
 - [x] Add interactive result hovers, full output inspector, and copy command.
 - [x] Add interactive template worksheets and one-click Export to Kotlin/Test.
-- [ ] Improve standalone external dependency configuration.
-- [ ] Improve performance for large worksheets.
-- [ ] Add more Kotlin syntax fixtures and compatibility tests.
+- [x] Fix Windows CI teardown file-lock handling.
 
-Exit criteria: supported Kotlin behavior is documented and unsupported cases
-are explicit.
+Exit criteria: `.worksheet.kt` and `.worksheet.kts` work identically, TextMate grammar provides out-of-the-box syntax highlighting, large outputs can be inspected side-by-side, and release 0.8.0 is published.
 
-## v0.9.0: Beta Hardening
+## v0.9.0: Persistent Daemon & Ecosystem Expansion
 
-Goal: stabilize behavior and freeze the public extension surface before 1.0.
+Goal: eliminate JVM cold-start latency with a warm persistent daemon, and support Maven and standalone `@file:DependsOn`.
 
-- [ ] Resolve all known P0 and P1 issues.
-- [ ] Run performance, timeout, and cancellation tests on all supported systems.
-- [ ] Test supported Kotlin, Gradle, and VS Code upgrades.
-- [ ] Polish Marketplace screenshots and documentation.
-- [ ] Decide whether to publish to Open VSX.
+Status: Implemented and released in v0.9.0.
+
+- [x] Add persistent JVM daemon mode (`kotlinWorksheet.daemon.enabled`).
+- [x] Implement warm daemon process with sub-100ms evaluation latency (`KotlinWorksheetDaemon.java` and `kotlin-worksheet-daemon.jar`).
+- [x] Add daemon lifecycle management (auto idle shutdown, status bar indicator, restart command).
+- [x] Add Maven (`pom.xml`) project classpath resolution with SHA-256 caching.
+- [x] Support standalone `@file:DependsOn` and `@file:Repository` script annotations.
+- [x] Improve performance and memory usage for worksheets.
+
+Exit criteria: evaluation latency on warm runs drops below 100ms, and Maven projects are automatically resolved alongside Gradle.
+
+## v0.9.5: Beta Hardening & Open VSX
+
+Goal: stabilize behavior, broaden distribution to Open VSX, and freeze public API before 1.0.
+
+- [ ] Add automated publishing to Open VSX Registry in the release workflow.
+- [ ] Test Kotlin 2.x syntax (multi-dollar string interpolation, context parameters, smart casts).
+- [ ] Add incremental block state / session caching for Run Current Block.
+- [ ] Run performance, timeout, and cancellation tests on macOS, Linux, and Windows.
+- [ ] Freeze commands, settings schema, and default keybindings.
 - [ ] Document migration and compatibility notes.
-- [ ] Freeze commands, settings, and worksheet suffix behavior.
 
-Exit criteria: a stable beta is available with no planned breaking changes.
+Exit criteria: a stable beta is available across VS Marketplace and Open VSX with frozen settings.
 
 ## v1.0.0: Stable Release
 
@@ -91,32 +104,31 @@ Goal: publish a stable, supported Kotlin worksheet experience.
 
 Supported baseline:
 
-- `.worksheet.kts` files.
-- Local `kotlinc` execution.
-- Standard Kotlin JVM Gradle projects.
-- Arrow-kt through Gradle project dependencies.
+- `.worksheet.kts` and `.worksheet.kt` files.
+- Persistent daemon and local `kotlinc` execution modes.
+- Kotlin JVM Gradle and Maven projects.
+- Standalone worksheets with `@file:DependsOn`.
+- Arrow-kt and third-party library evaluation.
 - Functional type display for supported lambda and function-reference cases.
-- Inline comments and decoration rendering.
+- Inline comments, decoration rendering, and Large Output Inspector.
 - Diagnostics, cancellation, timeouts, and run-on-save.
-- VS Code on macOS, Linux, and Windows.
+- VS Code, VSCodium, and Cursor on macOS, Linux, and Windows.
 
 Release requirements:
 
-- [ ] Freeze commands, settings, and `.worksheet.kts` behavior.
+- [ ] Freeze commands, settings, and worksheet behavior.
 - [ ] Publish the complete support matrix.
-- [ ] Pass CI on macOS, Linux, and Windows.
-- [ ] Validate clean VSIX installation.
-- [ ] Complete manual UX testing.
-- [ ] Publish the Marketplace release and tag `v1.0.0`.
+- [ ] Pass cross-platform CI on macOS, Linux, and Windows.
+- [ ] Validate clean VSIX installation in isolated environments.
+- [ ] Complete manual UX testing and polish storefront media/GIFs.
+- [ ] Publish the 1.0.0 release to VS Marketplace and Open VSX.
 - [ ] Document the support and maintenance policy.
 
 Deferred unless fully designed and tested:
 
-- `.worksheet.kt` support.
-- Android-specific projects.
+- Android-specific project structures.
 - Kotlin Multiplatform projects.
-- Custom webview UI.
-- Arbitrary standalone dependency downloading.
+- Interactive live code notebook cell UI.
 
 ## Release Process
 

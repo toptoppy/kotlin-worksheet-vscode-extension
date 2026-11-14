@@ -2,9 +2,10 @@ import { constants as fsConstants } from "node:fs";
 import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
+import { locateMavenProjectRoot } from "./maven.js";
 import { runCapturedCommand } from "./process.js";
 
-export type ExecutionMode = "auto" | "localKotlinc" | "gradleClasspath";
+export type ExecutionMode = "auto" | "localKotlinc" | "gradleClasspath" | "mavenClasspath";
 
 export interface GradleClasspathResult {
   success: boolean;
@@ -239,7 +240,7 @@ export function parseGradleClasspath(stdout: string): string[] {
 export async function detectExecutionMode(
   documentDir: string,
   requestedMode: ExecutionMode,
-): Promise<"localKotlinc" | "gradleClasspath"> {
+): Promise<"localKotlinc" | "gradleClasspath" | "mavenClasspath"> {
   if (requestedMode === "localKotlinc") {
     return "localKotlinc";
   }
@@ -248,8 +249,17 @@ export async function detectExecutionMode(
     return "gradleClasspath";
   }
 
+  if (requestedMode === "mavenClasspath") {
+    return "mavenClasspath";
+  }
+
   const gradleRoot = await locateGradleProjectRoot(documentDir);
-  return gradleRoot ? "gradleClasspath" : "localKotlinc";
+  if (gradleRoot) {
+    return "gradleClasspath";
+  }
+
+  const mavenRoot = await locateMavenProjectRoot(documentDir);
+  return mavenRoot ? "mavenClasspath" : "localKotlinc";
 }
 
 async function hasGradleMarkers(dir: string): Promise<boolean> {

@@ -17,14 +17,15 @@ Supported Kotlin compiler for the current release line: `kotlinc-jvm 2.4.0`.
 | --- | --- |
 | VS Code | 1.100 or newer |
 | Kotlin compiler | `kotlinc-jvm 2.4.0` for the current release line |
-| Gradle | A wrapper or `gradle` executable in standard JVM projects |
+| Build tools | Gradle wrapper/executable or Maven (`pom.xml` / `mvnw`) in standard JVM projects |
+| Daemon Mode | Persistent warm background JVM worker for sub-100ms execution |
 | Operating systems | macOS, Linux, and Windows |
 
-Gradle classpath mode requires a JVM Gradle project that exposes
-`sourceSets.main.runtimeClasspath`. Android, Kotlin Multiplatform, and custom
-Gradle source-set layouts remain unsupported. In automatic mode, a Gradle
+Gradle and Maven classpath modes require a standard JVM project. Android, Kotlin Multiplatform, and custom
+build layouts remain unsupported. In automatic mode, a build tool
 failure falls back to local Kotlin and shows the categorized reason. Explicit
-`gradleClasspath` mode reports an error instead and does not fall back.
+`gradleClasspath` or `mavenClasspath` mode reports an error instead and does not fall back.
+Standalone worksheets can also import Maven Central dependencies directly using `@file:DependsOn("group:artifact:version")`.
 
 ## Install The Extension
 
@@ -41,7 +42,7 @@ Use this path for unreleased builds or pilot testing.
 1. Get the packaged extension file:
 
    ```text
-   kotlin-worksheet-0.7.0.vsix
+   kotlin-worksheet-0.9.0.vsix
    ```
 
 2. Open VS Code.
@@ -272,6 +273,7 @@ Create files ending with:
 
 ```text
 .worksheet.kts
+.worksheet.kt
 ```
 
 Example:

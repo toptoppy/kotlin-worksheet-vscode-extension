@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { getSharedKotlinDaemonClient } from "./daemon.js";
 import { runCapturedCommand } from "./process.js";
 import type { WorksheetDiagnostic } from "./worksheet.js";
 import {
@@ -30,6 +31,7 @@ export interface KotlinWorksheetExecutionOptions {
   cancellationSignal?: AbortSignal;
   classpath?: string[];
   resultRange?: WorksheetRange;
+  useDaemon?: boolean;
 }
 
 export async function executeWorksheet(
@@ -37,18 +39,44 @@ export async function executeWorksheet(
   options: KotlinWorksheetExecutionOptions,
 ): Promise<KotlinWorksheetExecution> {
   const instrumented = instrumentWorksheet(source, undefined, { resultRange: options.resultRange });
+  const hasDependsOn = /^\s*@file:(?:DependsOn|Repository)\b/m.test(source);
+  const scriptFileName = hasDependsOn ? "worksheet.main.kts" : "worksheet.kts";
   const tempDir = await mkdtemp(path.join(tmpdir(), "kotlin-worksheet-"));
-  const tempFile = path.join(tempDir, "worksheet.kts");
+  const tempFile = path.join(tempDir, scriptFileName);
 
   try {
     await writeFile(tempFile, instrumented.script, "utf8");
-    const processResult = await runKotlincScript(
-      options.kotlinCommand,
-      tempFile,
-      options.timeoutMs,
-      options.cancellationSignal,
-      options.classpath,
-    );
+
+    let processResult: ProcessResult | undefined;
+    const daemonClient = getSharedKotlinDaemonClient();
+    const canUseDaemon = options.useDaemon !== false && daemonClient.isAvailable(options.kotlinCommand);
+
+    if (canUseDaemon) {
+      try {
+        processResult = await daemonClient.executeScript(
+          {
+            scriptPath: tempFile,
+            classpath: options.classpath,
+            timeoutMs: options.timeoutMs,
+            cancellationSignal: options.cancellationSignal,
+          },
+          options.kotlinCommand,
+        );
+      } catch {
+        // Fall back to direct kotlinc execution if daemon encounters an error
+        processResult = undefined;
+      }
+    }
+
+    if (!processResult || processResult.startError) {
+      processResult = await runKotlincScript(
+        options.kotlinCommand,
+        tempFile,
+        options.timeoutMs,
+        options.cancellationSignal,
+        options.classpath,
+      );
+    }
     const output = processResult.exitCode === 0
       ? parseWorksheetOutputDetails(processResult.stdout, instrumented.markerPrefix)
       : { results: new Map<number, string>(), runtimeOutput: "" };

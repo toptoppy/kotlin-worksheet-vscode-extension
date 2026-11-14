@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { executeWorksheet } from "./executor.js";
 import { checkEnvironment, type EnvironmentCheckResult } from "./environment.js";
+import { shutdownSharedKotlinDaemon } from "./daemon.js";
 import { GradleClasspathCache } from "./gradle-cache.js";
 import {
   buildGradleFailureReport,
@@ -8,6 +9,12 @@ import {
   type ExecutionMode,
   type GradleFailureKind,
 } from "./gradle.js";
+import {
+  buildMavenFailureReport,
+  locateMavenProjectRoot,
+  type MavenFailureKind,
+} from "./maven.js";
+import { MavenClasspathCache } from "./maven-cache.js";
 import {
   WORKSHEET_SUFFIX,
   WORKSHEET_SUFFIX_DESCRIPTION,
@@ -37,7 +44,9 @@ const decorationOptionsByDocument = new Map<string, vscode.DecorationOptions[]>(
 const decorationResultsByDocument = new Map<string, Map<number, string>>();
 const latestWorksheetResultsByDocument = new Map<string, Map<number, string>>();
 const shownGradleFallbacks = new Set<string>();
+const shownMavenFallbacks = new Set<string>();
 const gradleClasspathCache = new GradleClasspathCache();
+const mavenClasspathCache = new MavenClasspathCache();
 let nextRunId = 1;
 
 type RecoveryAction =
@@ -51,6 +60,15 @@ type RecoveryAction =
 class GradleResolutionError extends Error {
   constructor(
     readonly kind: GradleFailureKind,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+class MavenResolutionError extends Error {
+  constructor(
+    readonly kind: MavenFailureKind,
     message: string,
   ) {
     super(message);
@@ -97,6 +115,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("kotlinWorksheet.toggleRunOnSave", toggleRunOnSave),
     vscode.commands.registerCommand("kotlinWorksheet.toggleRenderMode", () => toggleRenderMode(resultDecoration)),
     vscode.commands.registerCommand("kotlinWorksheet.refreshGradleClasspath", () => refreshGradleClasspath(output)),
+    vscode.commands.registerCommand("kotlinWorksheet.refreshMavenClasspath", () => refreshMavenClasspath(output)),
+    vscode.commands.registerCommand("kotlinWorksheet.restartDaemon", () => restartDaemon(output)),
     vscode.commands.registerCommand("kotlinWorksheet.openSetupGuide", () => openSetupGuide(context.extensionUri)),
     vscode.commands.registerCommand("kotlinWorksheet.showOutput", () => output.show(true)),
     vscode.commands.registerCommand("kotlinWorksheet.checkEnvironment", () => checkWorksheetEnvironment(output)),
@@ -180,7 +200,10 @@ export function deactivate(): void {
   decorationResultsByDocument.clear();
   latestWorksheetResultsByDocument.clear();
   shownGradleFallbacks.clear();
+  shownMavenFallbacks.clear();
   gradleClasspathCache.clear();
+  mavenClasspathCache.clear();
+  void shutdownSharedKotlinDaemon();
 }
 
 async function runActiveWorksheet(
@@ -288,7 +311,7 @@ async function runWorksheetDocument(
     const kotlinCommand = config.get<string>("kotlinCommand", "kotlinc");
     const timeoutMs = config.get<number>("timeoutMs", 10000);
     const maxResultLength = config.get<number>("maxResultLength", 500);
-    const executionMode = config.get<"auto" | "localKotlinc" | "gradleClasspath">("executionMode", "auto");
+    const executionMode = config.get<ExecutionMode>("executionMode", "auto");
     const gradleClasspathCacheEnabled = config.get<boolean>("gradleClasspathCache.enabled", true);
     let source = "";
     let executionSource = "";
@@ -335,10 +358,13 @@ async function runWorksheetDocument(
         try {
           const documentDir = path.dirname(document.fileName);
           phaseStartedAt = Date.now();
-          const gradleRoot = executionMode === "localKotlinc"
+          const gradleRoot = executionMode === "localKotlinc" || executionMode === "mavenClasspath"
             ? undefined
             : await locateGradleProjectRoot(documentDir);
-          const resolvedMode = resolveExecutionMode(executionMode, gradleRoot);
+          const mavenRoot = executionMode === "localKotlinc" || executionMode === "gradleClasspath" || gradleRoot
+            ? undefined
+            : await locateMavenProjectRoot(documentDir);
+          const resolvedMode = resolveExecutionMode(executionMode, gradleRoot, mavenRoot);
           logPhase("Execution mode detection", phaseStartedAt);
           worksheetRuns.setExecutionMode(uri, resolvedMode);
           output.info(`${logPrefix} Resolved execution mode: ${resolvedMode}`);
@@ -409,6 +435,56 @@ async function runWorksheetDocument(
                 report.reason,
               );
             }
+          } else if (resolvedMode === "mavenClasspath") {
+            progress.report({ message: "Resolving Maven classpath" });
+            const mavenClasspathCacheEnabled = config.get<boolean>("mavenClasspathCache.enabled", true);
+            if (mavenRoot) {
+              phaseStartedAt = Date.now();
+              const mavenResolution = await mavenClasspathCache.resolve(mavenRoot, {
+                timeoutMs,
+                cancellationSignal: run.cancellationSignal,
+                worksheetDir: documentDir,
+                enabled: mavenClasspathCacheEnabled,
+              });
+              logPhase("Maven classpath resolution", phaseStartedAt);
+              logMavenCacheStatus(output, logPrefix, mavenResolution.cacheStatus);
+
+              if (run.cancellationSignal.aborted) {
+                const report = buildMavenFailureReport(logPrefix, {
+                  ...mavenResolution,
+                  cancelled: true,
+                });
+                output.warn(report.logMessage);
+                throw new Error("Worksheet execution cancelled.");
+              }
+
+              if (mavenResolution.success && mavenResolution.classpath.length > 0) {
+                classpath = mavenResolution.classpath;
+                output.info(`${logPrefix} Maven classpath: ${classpath.length} entries from ${mavenRoot}`);
+                output.debug(`${logPrefix} Maven classpath entries: ${classpath.join(path.delimiter)}`);
+              } else if (executionMode === "mavenClasspath") {
+                const report = buildMavenFailureReport(logPrefix, mavenResolution);
+                output.warn(report.logMessage);
+                throw new MavenResolutionError(report.kind, report.reason);
+              } else {
+                const report = buildMavenFailureReport(logPrefix, mavenResolution);
+                output.warn(report.logMessage);
+                worksheetRuns.setExecutionMode(uri, "localKotlinc");
+                output.warn(
+                  `${logPrefix} Maven classpath resolution failed (${report.reason}); continuing with local Kotlin.`,
+                );
+                showMavenFallbackWarning(output, document.uri, mavenRoot, report.reason);
+              }
+            } else if (executionMode === "mavenClasspath") {
+              const report = buildMavenFailureReport(logPrefix, {
+                classpath: [],
+                stderr: "No Maven pom.xml contains the worksheet directory.",
+                timedOut: false,
+                cancelled: false,
+              });
+              output.warn(report.logMessage);
+              throw new MavenResolutionError(report.kind, report.reason);
+            }
           }
 
           const classpathArgument = classpath.length > 0 ? ` -classpath <${classpath.length} entries>` : "";
@@ -417,12 +493,14 @@ async function runWorksheetDocument(
           worksheetRuns.transition(uri, "running");
           executionSource = resultRange ? truncateWorksheetSource(source, resultRange.endLine) : source;
           phaseStartedAt = Date.now();
+          const daemonEnabled = config.get<boolean>("daemon.enabled", true);
           const execution = await executeWorksheet(executionSource, {
             kotlinCommand,
             timeoutMs,
             cancellationSignal: run.cancellationSignal,
             classpath,
             resultRange,
+            useDaemon: daemonEnabled,
           });
           logPhase("Kotlin execution", phaseStartedAt);
 
@@ -663,6 +741,24 @@ function showGradleFallbackWarning(
   );
 }
 
+function showMavenFallbackWarning(
+  output: vscode.LogOutputChannel,
+  resource: vscode.Uri,
+  projectKey: string,
+  reason: string,
+): void {
+  if (shownMavenFallbacks.has(projectKey)) {
+    return;
+  }
+  shownMavenFallbacks.add(projectKey);
+  showWarningWithRecovery(
+    output,
+    `Maven classpath resolution failed (${reason}). This run will continue with local Kotlin.`,
+    ["Open Output", "Use Local Kotlin", "Open Settings"],
+    resource,
+  );
+}
+
 async function openSetupGuide(extensionUri: vscode.Uri): Promise<void> {
   try {
     await vscode.commands.executeCommand(
@@ -687,7 +783,7 @@ async function checkWorksheetEnvironment(output: vscode.LogOutputChannel): Promi
     : workspaceFolder?.uri.fsPath;
   const config = vscode.workspace.getConfiguration("kotlinWorksheet", resource);
   const kotlinCommand = config.get<string>("kotlinCommand", "kotlinc");
-  const executionMode = config.get<"auto" | "localKotlinc" | "gradleClasspath">("executionMode", "auto");
+  const executionMode = config.get<ExecutionMode>("executionMode", "auto");
 
   const result = await vscode.window.withProgress(
     {
@@ -731,6 +827,15 @@ async function checkWorksheetEnvironment(output: vscode.LogOutputChannel): Promi
     );
     return;
   }
+  if (result.maven?.required && result.maven.status !== "available") {
+    showErrorWithRecovery(
+      output,
+      `Maven classpath mode is not ready: ${result.maven.error ?? "Maven is unavailable"}`,
+      ["Open Output", "Use Local Kotlin", "Open Settings"],
+      resource,
+    );
+    return;
+  }
   if (
     result.executionMode === "auto"
     && result.gradle.projectRoot
@@ -744,10 +849,30 @@ async function checkWorksheetEnvironment(output: vscode.LogOutputChannel): Promi
     );
     return;
   }
+  if (
+    result.executionMode === "auto"
+    && result.maven?.projectRoot
+    && result.maven.status === "unavailable"
+  ) {
+    showWarningWithRecovery(
+      output,
+      "Kotlin is ready, but Maven is unavailable. Automatic mode will use local Kotlin.",
+      ["Open Output", "Use Local Kotlin", "Open Settings"],
+      resource,
+    );
+    return;
+  }
 
-  const gradleSummary = result.gradle.status === "available" ? " Gradle was detected." : "";
+  const detectedProjects: string[] = [];
+  if (result.gradle.status === "available") {
+    detectedProjects.push("Gradle");
+  }
+  if (result.maven?.status === "available") {
+    detectedProjects.push("Maven");
+  }
+  const projectSummary = detectedProjects.length > 0 ? ` ${detectedProjects.join(" and ")} detected.` : "";
   const selected = await vscode.window.showInformationMessage(
-    `Kotlin Worksheet is ready. ${result.kotlin.version ?? "Kotlin is available"}.${gradleSummary}`,
+    `Kotlin Worksheet is ready. ${result.kotlin.version ?? "Kotlin is available"}.${projectSummary}`,
     "Open Output",
   );
   if (selected === "Open Output") {
@@ -772,6 +897,19 @@ function logEnvironmentCheck(output: vscode.LogOutputChannel, result: Environmen
     output.warn(`[environment] Gradle: unavailable (${result.gradle.error ?? "unknown reason"})`);
   } else {
     output.info("[environment] Gradle: not needed");
+  }
+  if (result.maven) {
+    output.info(`[environment] Maven project: ${result.maven.projectRoot ?? "not detected"}`);
+    if (result.maven.status === "available") {
+      output.info(`[environment] Maven: available (${result.maven.command ?? "command detected"})`);
+    } else if (result.maven.status === "unavailable") {
+      output.warn(`[environment] Maven: unavailable (${result.maven.error ?? "unknown reason"})`);
+    } else {
+      output.info("[environment] Maven: not needed");
+    }
+  }
+  if (result.daemon) {
+    output.info(`[environment] Daemon: available=${result.daemon.available}, running=${result.daemon.running}`);
   }
   output.info(`[environment] Ready: ${result.ready}`);
 }
@@ -811,7 +949,8 @@ function finishWorksheetRun(
 function resolveExecutionMode(
   requestedMode: ExecutionMode,
   gradleRoot: string | undefined,
-): "localKotlinc" | "gradleClasspath" {
+  mavenRoot: string | undefined,
+): "localKotlinc" | "gradleClasspath" | "mavenClasspath" {
   if (requestedMode === "localKotlinc") {
     return "localKotlinc";
   }
@@ -820,7 +959,19 @@ function resolveExecutionMode(
     return "gradleClasspath";
   }
 
-  return gradleRoot ? "gradleClasspath" : "localKotlinc";
+  if (requestedMode === "mavenClasspath") {
+    return "mavenClasspath";
+  }
+
+  if (gradleRoot) {
+    return "gradleClasspath";
+  }
+
+  if (mavenRoot) {
+    return "mavenClasspath";
+  }
+
+  return "localKotlinc";
 }
 
 async function refreshGradleClasspath(output: vscode.LogOutputChannel): Promise<void> {
@@ -840,6 +991,31 @@ async function refreshGradleClasspath(output: vscode.LogOutputChannel): Promise<
   const cleared = gradleClasspathCache.clear(gradleRoot, documentDir);
   output.info(`Gradle classpath cache refreshed for ${gradleRoot}; cleared ${cleared} entr${cleared === 1 ? "y" : "ies"}.`);
   void vscode.window.setStatusBarMessage("Kotlin Worksheet Gradle classpath cache refreshed", 2500);
+}
+
+async function refreshMavenClasspath(output: vscode.LogOutputChannel): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isWorksheetPath(editor.document.fileName)) {
+    void vscode.window.showInformationMessage(`Open a ${WORKSHEET_SUFFIX_DESCRIPTION} file to refresh its Maven classpath.`);
+    return;
+  }
+
+  const documentDir = path.dirname(editor.document.fileName);
+  const mavenRoot = await locateMavenProjectRoot(documentDir);
+  if (!mavenRoot) {
+    void vscode.window.showInformationMessage("No Maven project (pom.xml) was found for this worksheet.");
+    return;
+  }
+
+  const cleared = mavenClasspathCache.clear(mavenRoot, documentDir);
+  output.info(`Maven classpath cache refreshed for ${mavenRoot}; cleared ${cleared} entr${cleared === 1 ? "y" : "ies"}.`);
+  void vscode.window.setStatusBarMessage("Kotlin Worksheet Maven classpath cache refreshed", 2500);
+}
+
+async function restartDaemon(output: vscode.LogOutputChannel): Promise<void> {
+  output.info("Restarting Kotlin Worksheet daemon...");
+  await shutdownSharedKotlinDaemon();
+  void vscode.window.setStatusBarMessage("Kotlin Worksheet daemon restarted", 2500);
 }
 
 function logGradleCacheStatus(
@@ -862,6 +1038,30 @@ function logGradleCacheStatus(
       return;
     case "disabled":
       output.info(`${logPrefix} Gradle classpath cache disabled.`);
+      return;
+  }
+}
+
+function logMavenCacheStatus(
+  output: vscode.LogOutputChannel,
+  logPrefix: string,
+  status: "hit" | "miss" | "invalidated" | "shared" | "disabled",
+): void {
+  switch (status) {
+    case "hit":
+      output.info(`${logPrefix} Maven classpath cache hit.`);
+      return;
+    case "miss":
+      output.info(`${logPrefix} Maven classpath cache miss.`);
+      return;
+    case "invalidated":
+      output.info(`${logPrefix} Maven classpath cache invalidated; resolved fresh classpath.`);
+      return;
+    case "shared":
+      output.info(`${logPrefix} Maven classpath resolution shared with an active request.`);
+      return;
+    case "disabled":
+      output.info(`${logPrefix} Maven classpath cache disabled.`);
       return;
   }
 }
@@ -1043,7 +1243,7 @@ function updateWorksheetStatus(status: vscode.StatusBarItem): void {
   const presentation = buildWorksheetStatus({
     state: worksheetRuns.getState(editor.document.uri.toString()),
     runOnSave: config.get<boolean>("runOnSave", false),
-    requestedExecutionMode: config.get<"auto" | "localKotlinc" | "gradleClasspath">("executionMode", "auto"),
+    requestedExecutionMode: config.get<ExecutionMode>("executionMode", "auto"),
   });
   status.text = presentation.text;
   status.tooltip = presentation.tooltip;

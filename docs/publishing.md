@@ -2,8 +2,8 @@
 
 This guide covers publishing Kotlin Worksheet to the Visual Studio Marketplace, updating versions, and maintaining releases.
 
-Examples in this guide target the current `0.8.0` release. Replace
-`0.8.0` consistently when preparing a later version; historical `0.7.0`
+Examples in this guide target the current `0.9.0` release. Replace
+`0.9.0` consistently when preparing a later version; historical `0.8.0`
 release material should not be reused for the current release.
 
 Official reference: https://code.visualstudio.com/api/working-with-extensions/publishing-extension
@@ -54,12 +54,12 @@ the first release:
 2. Add required reviewers to that environment so publishing requires approval.
 3. Add an encrypted environment secret named `VSCE_PAT` containing the
    Marketplace publishing token.
-4. Push the version-matching tag `v0.8.0` after the release commit has
+4. Push the version-matching tag `v0.9.0` after the release commit has
    passed normal CI.
-5. Open **Actions > Publish Extension > Run workflow** and enter `0.8.0`.
+5. Open **Actions > Publish Extension > Run workflow** and enter `0.9.0`.
 
-The workflow checks out `v0.8.0`, verifies that `package.json` contains
-`0.8.0`, runs the Kotlin and Gradle checks, runs integration tests, and uploads
+The workflow checks out `v0.9.0`, verifies that `package.json` contains
+`0.9.0`, runs the Kotlin and Gradle checks, runs integration tests, and uploads
 the checked VSIX as an artifact. Only then does the protected `marketplace`
 environment allow the publish job to run. The exact checked VSIX is published
 and attached to the GitHub release.
@@ -94,19 +94,19 @@ not mean the release is ready to publish.
    Example:
 
    ```text
-    0.7.0 -> 0.8.0
+    0.8.0 -> 0.9.0
    ```
 
 3. Update `package.json`:
 
    ```json
-    "version": "0.8.0"
+    "version": "0.9.0"
    ```
 
 4. Move `CHANGELOG.md` entries from `Unreleased` into the new version section:
 
    ```md
-    ## [0.8.0] - YYYY-MM-DD
+    ## [0.9.0] - YYYY-MM-DD
    ```
 
 5. Run the full release check:
@@ -135,19 +135,19 @@ not mean the release is ready to publish.
 
    ```sh
    git add package.json CHANGELOG.md
-   git commit -m "Release 0.8.0"
+   git commit -m "Release 0.9.0"
    ```
 
 8. Create and push the matching release tag:
 
    ```sh
-   git tag v0.8.0
-   git push origin main v0.8.0
+   git tag v0.9.0
+   git push origin main v0.9.0
    ```
 
 9. Confirm the tagged commit passes the normal CI matrix before publishing.
 
-10. Open **Actions > Publish Extension > Run workflow** and enter `0.8.0`.
+10. Open **Actions > Publish Extension > Run workflow** and enter `0.9.0`.
     Approve the protected `marketplace` environment when the validation job
     passes. This publishes the exact checked VSIX and creates or updates the
     GitHub release.
@@ -158,7 +158,7 @@ not mean the release is ready to publish.
     https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet
    ```
 
-The standard `0.8.0` release does not use a direct `vsce publish` command; the
+The standard `0.9.0` release does not use a direct `vsce publish` command; the
 protected GitHub Actions workflow owns Marketplace publication.
 
 ## Auto-version Publish Option
@@ -178,7 +178,7 @@ Use this only when you are comfortable with `vsce` updating `package.json` and c
 Use pre-release publishing when you want early feedback without replacing the stable release channel:
 
 ```sh
-pnpm exec vsce publish --pre-release --packagePath kotlin-worksheet-0.8.0.vsix
+pnpm exec vsce publish --pre-release --packagePath kotlin-worksheet-0.9.0.vsix
 ```
 
 Use pre-release builds for pilot customers when Marketplace distribution is easier than sharing a VSIX directly.

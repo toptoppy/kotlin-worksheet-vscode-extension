@@ -2,7 +2,7 @@
   "name": "kotlin-worksheet",
   "displayName": "Kotlin Worksheet",
   "description": "Evaluate Kotlin .worksheet.kts and .worksheet.kt files and write inline results.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "publisher": "ws-kts-toppy",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -45,6 +45,8 @@
     "onCommand:kotlinWorksheet.toggleRunOnSave",
     "onCommand:kotlinWorksheet.toggleRenderMode",
     "onCommand:kotlinWorksheet.refreshGradleClasspath",
+    "onCommand:kotlinWorksheet.refreshMavenClasspath",
+    "onCommand:kotlinWorksheet.restartDaemon",
     "onCommand:kotlinWorksheet.checkEnvironment",
     "onCommand:kotlinWorksheet.showOutput",
     "onCommand:kotlinWorksheet.inspectResult",
@@ -95,6 +97,14 @@
       {
         "command": "kotlinWorksheet.refreshGradleClasspath",
         "title": "Kotlin Worksheet: Refresh Gradle Classpath"
+      },
+      {
+        "command": "kotlinWorksheet.refreshMavenClasspath",
+        "title": "Kotlin Worksheet: Refresh Maven Classpath"
+      },
+      {
+        "command": "kotlinWorksheet.restartDaemon",
+        "title": "Kotlin Worksheet: Restart Kotlin Daemon"
       },
       {
         "command": "kotlinWorksheet.checkEnvironment",
@@ -169,36 +179,50 @@
           "enum": [
             "auto",
             "localKotlinc",
-            "gradleClasspath"
+            "gradleClasspath",
+            "mavenClasspath"
           ],
           "enumDescriptions": [
-            "Use a detected Gradle project classpath, with local Kotlin as a fallback.",
+            "Use a detected Gradle or Maven project classpath, with local Kotlin as a fallback.",
             "Run directly with the configured Kotlin command and no project classpath.",
-            "Require a Gradle project and resolve its runtime classpath before running."
+            "Require a Gradle project and resolve its runtime classpath before running.",
+            "Require a Maven project and resolve its runtime classpath before running."
           ],
           "default": "auto",
           "description": "How the worksheet execution classpath is resolved.",
           "order": 2
         },
+        "kotlinWorksheet.daemon.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep a warm Kotlin compiler daemon alive in the background for sub-second worksheet executions.",
+          "order": 5
+        },
         "kotlinWorksheet.gradleClasspathCache.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Cache successful Gradle classpath resolutions and reuse them until Gradle build files or project sources change.",
-          "order": 5
+          "order": 6
+        },
+        "kotlinWorksheet.mavenClasspathCache.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cache successful Maven classpath resolutions and reuse them until pom.xml or project sources change.",
+          "order": 7
         },
         "kotlinWorksheet.timeoutMs": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
           "description": "Maximum worksheet execution time in milliseconds.",
-          "order": 6
+          "order": 8
         },
         "kotlinWorksheet.maxResultLength": {
           "type": "number",
           "default": 500,
           "minimum": 20,
           "description": "Maximum number of characters written for a single inline worksheet result.",
-          "order": 7
+          "order": 9
         }
       }
     },
@@ -347,6 +371,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint .",
+    "build:daemon": "javac -cp \"${KOTLIN_HOME:-$HOME/.local/share/mise/installs/kotlin/latest}/lib/kotlin-compiler.jar\" -d server/build server/src/KotlinWorksheetDaemon.java && jar cf server/bin/kotlin-worksheet-daemon.jar -C server/build .",
     "check": "pnpm lint && pnpm compile && pnpm test && pnpm package",
     "test": "vitest run",
     "test:vsix-install": "node test/smoke/vsix-install.mjs",

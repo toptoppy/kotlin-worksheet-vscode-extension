@@ -1,9 +1,10 @@
+import type { ExecutionMode } from "./gradle.js";
 import type { WorksheetRunState, WorksheetRunStatus } from "./run-state.js";
 
 export interface WorksheetStatusOptions {
   state: WorksheetRunState;
   runOnSave: boolean;
-  requestedExecutionMode: "auto" | "localKotlinc" | "gradleClasspath";
+  requestedExecutionMode: ExecutionMode;
 }
 
 export interface WorksheetStatusPresentation {

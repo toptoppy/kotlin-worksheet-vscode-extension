@@ -10,6 +10,8 @@ assets/kotlin-worksheet-icon.png
 /*.worksheet.kt
 .vscode-test/
 coverage/
+.opencode/
+server/build/
 .code-review-graph/
 graphify-out/
 test/fixtures/**/bin/

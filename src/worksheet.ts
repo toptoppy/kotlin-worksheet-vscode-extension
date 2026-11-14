@@ -402,7 +402,7 @@ function isExecutableTopLevelLine(trimmed: string): boolean {
     return false;
   }
 
-  if (trimmed.startsWith("package ") || trimmed.startsWith("import ")) {
+  if (trimmed.startsWith("package ") || trimmed.startsWith("import ") || trimmed.startsWith("@file:")) {
     return false;
   }
 

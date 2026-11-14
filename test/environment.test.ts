@@ -103,4 +103,24 @@ describe("checkEnvironment", () => {
     expect(result.ready).toBe(true);
     expect(result.gradle.status).toBe("unavailable");
   });
+
+  it("checks Maven environment when mavenClasspath mode is selected", async () => {
+    const result = await checkEnvironment({
+      trusted: true,
+      kotlinCommand: "kotlinc",
+      executionMode: "mavenClasspath",
+      documentDir: "/workspace",
+    }, dependencies({
+      locateMavenRoot: vi.fn().mockResolvedValue("/workspace"),
+      detectMaven: vi.fn().mockResolvedValue({ command: "mvn", args: [] }),
+    }));
+
+    expect(result.ready).toBe(true);
+    expect(result.maven).toMatchObject({
+      required: true,
+      status: "available",
+      projectRoot: "/workspace",
+      command: "mvn",
+    });
+  });
 });

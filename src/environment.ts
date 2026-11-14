@@ -1,10 +1,16 @@
 import path from "node:path";
+import { getSharedKotlinDaemonClient } from "./daemon.js";
 import {
   detectGradleCommand,
   locateGradleProjectRoot,
   type ExecutionMode,
   type GradleCommand,
 } from "./gradle.js";
+import {
+  detectMavenCommand,
+  locateMavenProjectRoot,
+  type MavenCommand,
+} from "./maven.js";
 import { runCapturedCommand, type CapturedCommandResult } from "./process.js";
 
 export interface EnvironmentCheckOptions {
@@ -30,12 +36,25 @@ export interface GradleEnvironmentResult {
   error?: string;
 }
 
+export interface MavenEnvironmentResult {
+  required: boolean;
+  projectRoot?: string;
+  status: "available" | "unavailable" | "notNeeded";
+  command?: string;
+  error?: string;
+}
+
 export interface EnvironmentCheckResult {
   ready: boolean;
   trusted: boolean;
   executionMode: ExecutionMode;
   kotlin: EnvironmentToolResult;
   gradle: GradleEnvironmentResult;
+  maven?: MavenEnvironmentResult;
+  daemon?: {
+    available: boolean;
+    running: boolean;
+  };
 }
 
 export interface EnvironmentCheckDependencies {
@@ -46,26 +65,33 @@ export interface EnvironmentCheckDependencies {
   }) => Promise<CapturedCommandResult>;
   locateGradleRoot: (startDir: string) => Promise<string | undefined>;
   detectGradle: (projectRoot: string) => Promise<GradleCommand | undefined>;
+  locateMavenRoot?: (startDir: string) => Promise<string | undefined>;
+  detectMaven?: (projectRoot: string) => Promise<MavenCommand | undefined>;
 }
 
 const defaultDependencies: EnvironmentCheckDependencies = {
   runCommand: runCapturedCommand,
   locateGradleRoot: locateGradleProjectRoot,
   detectGradle: detectGradleCommand,
+  locateMavenRoot: locateMavenProjectRoot,
+  detectMaven: detectMavenCommand,
 };
 
 export async function checkEnvironment(
   options: EnvironmentCheckOptions,
   dependencies: EnvironmentCheckDependencies = defaultDependencies,
 ): Promise<EnvironmentCheckResult> {
-  const required = options.executionMode === "gradleClasspath";
+  const gradleRequired = options.executionMode === "gradleClasspath";
+  const mavenRequired = options.executionMode === "mavenClasspath";
+
   if (!options.trusted) {
     return {
       ready: false,
       trusted: false,
       executionMode: options.executionMode,
       kotlin: { status: "notChecked", command: options.kotlinCommand },
-      gradle: { required, status: "notNeeded" },
+      gradle: { required: gradleRequired, status: "notNeeded" },
+      maven: { required: mavenRequired, status: "notNeeded" },
     };
   }
 
@@ -95,7 +121,7 @@ export async function checkEnvironment(
     ? await dependencies.locateGradleRoot(path.resolve(options.documentDir))
     : undefined;
   let gradle: GradleEnvironmentResult = {
-    required,
+    required: gradleRequired,
     projectRoot,
     status: projectRoot ? "unavailable" : "notNeeded",
   };
@@ -104,31 +130,76 @@ export async function checkEnvironment(
     const gradleCommand = await dependencies.detectGradle(projectRoot);
     gradle = gradleCommand
       ? {
-          required,
+          required: gradleRequired,
           projectRoot,
           status: "available",
           command: [gradleCommand.command, ...gradleCommand.args].join(" "),
         }
       : {
-          required,
+          required: gradleRequired,
           projectRoot,
           status: "unavailable",
           error: "No Gradle wrapper or gradle command found.",
         };
-  } else if (required) {
+  } else if (gradleRequired) {
     gradle = {
-      required,
+      required: true,
       status: "unavailable",
       error: "No Gradle project was found.",
     };
   }
 
+  const locateMaven = dependencies.locateMavenRoot ?? locateMavenProjectRoot;
+  const detectMaven = dependencies.detectMaven ?? detectMavenCommand;
+  const mavenRoot = options.documentDir
+    ? await locateMaven(path.resolve(options.documentDir))
+    : undefined;
+  let maven: MavenEnvironmentResult = {
+    required: mavenRequired,
+    projectRoot: mavenRoot,
+    status: mavenRoot ? "unavailable" : "notNeeded",
+  };
+
+  if (mavenRoot) {
+    const mavenCommand = await detectMaven(mavenRoot);
+    maven = mavenCommand
+      ? {
+          required: mavenRequired,
+          projectRoot: mavenRoot,
+          status: "available",
+          command: [mavenCommand.command, ...mavenCommand.args].join(" "),
+        }
+      : {
+          required: mavenRequired,
+          projectRoot: mavenRoot,
+          status: "unavailable",
+          error: "No Maven wrapper or mvn command found.",
+        };
+  } else if (mavenRequired) {
+    maven = {
+      required: true,
+      status: "unavailable",
+      error: "No Maven pom.xml project was found.",
+    };
+  }
+
+  const daemonClient = getSharedKotlinDaemonClient();
+  const daemon = {
+    available: daemonClient.isAvailable(options.kotlinCommand),
+    running: daemonClient.isRunning,
+  };
+
+  const projectReady = (!gradleRequired || gradle.status === "available")
+    && (!mavenRequired || maven.status === "available");
+
   return {
-    ready: kotlinAvailable && (!required || gradle.status === "available"),
+    ready: kotlinAvailable && projectReady,
     trusted: true,
     executionMode: options.executionMode,
     kotlin,
     gradle,
+    maven,
+    daemon,
   };
 }
 

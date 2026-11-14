@@ -6,6 +6,20 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-14
+
+### Added
+
+- **Persistent JVM / REPL Daemon Mode**: Keeps a warm background Kotlin compiler process alive via `KotlinWorksheetDaemon.java` and `server/bin/kotlin-worksheet-daemon.jar`. Reduces worksheet execution times from ~3-5s down to sub-100ms warm runs, saving up to 95% execution overhead.
+- Added `kotlinWorksheet.daemon.enabled` setting (default `true`) with automatic fallback to standard `kotlinc` if the daemon is unavailable or disabled.
+- Added `Kotlin Worksheet: Restart Kotlin Daemon` command to easily cycle or reset the background worker.
+- **Maven Classpath Resolution & Caching**: Added native support for Maven projects (`pom.xml`). The extension detects Maven wrappers (`mvnw`) and installed `mvn`, resolves runtime classpaths via `dependency:build-classpath`, and caches results based on `pom.xml` content fingerprints.
+- Added `kotlinWorksheet.executionMode` option `"mavenClasspath"` alongside `"auto"` (which detects Gradle or Maven automatically) and `"gradleClasspath"`.
+- Added `kotlinWorksheet.mavenClasspathCache.enabled` setting (default `true`).
+- Added `Kotlin Worksheet: Refresh Maven Classpath` command.
+- **Dynamic `@file:DependsOn` & `@file:Repository` Support**: Standalone worksheets can now pull dependencies directly from Maven Central (e.g. `@file:DependsOn("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")`) via Kotlin's built-in script resolver without requiring any project build file.
+- Added Maven and Daemon diagnostics to `Kotlin Worksheet: Check Environment` and output logging.
+
 ## [0.8.0] - 2026-11-14
 
 ### Added

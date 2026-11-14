@@ -204,4 +204,21 @@ describe.skipIf(!hasKotlinc)("executeWorksheet", () => {
     expect(result.success).toBe(false);
     expect(result.startError).toBeTruthy();
   });
+
+  it("evaluates standalone worksheet with @file:DependsOn", async () => {
+    const source = [
+      '@file:DependsOn("com.google.code.gson:gson:2.10.1")',
+      'import com.google.gson.Gson',
+      'val map = mapOf("greeting" to "hello_kws")',
+      'Gson().toJson(map)',
+    ].join("\n");
+
+    const result = await executeWorksheet(source, {
+      kotlinCommand: "kotlinc",
+      timeoutMs: 35000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.results.get(4)).toBe('{"greeting":"hello_kws"}');
+  }, 40000);
 });

@@ -3,6 +3,8 @@
 .mise.toml
 .superpowers/**
 docs/superpowers/**
+.opencode/**
+server/build/**
 .code-review-graph/**
 graphify-out/**
 .gitignore
