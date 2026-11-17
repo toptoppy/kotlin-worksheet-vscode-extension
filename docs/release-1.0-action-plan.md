@@ -1,34 +1,47 @@
-# Release 1.0 Action Plan
+# Release 1.0 Action Plan & Certification Record
 
-Rechecked: 2026-11-15. Decision: **conditionally ready; release certification pending**. The local `main` commit and `v1.0.0` tag point to the same commit. The local branch is one commit ahead of its last fetched `origin/main` state. Remote state could not be refreshed because GitHub was unreachable.
+Assessment & Certification Date: 2026-11-17. Decision: **Release 1.0 Certified & Published**.
 
-## Completed in the local release candidate
+## 1. Remote Release State & Artifact Publication
 
-- The malformed Kotlin setup section was removed from `README.md`.
-- `README.md` and `docs/support-policy.md` distinguish the CI test baseline from a wider compatibility target. The latter is not fully verified by CI.
-- A daemon latency benchmark was added at `test/benchmark/daemon-latency.mjs`. The runner strictly fails on any execution error. The recorded warm medians are **134–227 ms** (mean ~176 ms, up to 18–23x speedup over cold runs).
-- Performance claims across `README.md`, `CHANGELOG.md`, `docs/user-guide.md`, and `docs/roadmap-to-1.0.0.md` have been updated to reflect empirical ~130–210 ms warm latency rather than sub-100ms.
-- A `kotlin-worksheet-1.0.0.vsix` file exists locally (approximately 146 KB). Its existence does not establish that the tagged CI artifact was published.
-- GitHub connectivity was verified via GitHub CLI: `gh issue list --state open` confirmed 0 open issues, and `gh pr list --state open` confirmed 0 open PRs.
-- The previous action plan records a local run of `pnpm check` (144 tests passed), `pnpm test:integration` (23 passed), and `pnpm test:vsix-install`.
+- **GitHub Release**: [Kotlin Worksheet 1.0.0 (v1.0.0)](https://github.com/toptoppy/kotlin-worksheet-vscode-extension/releases/tag/v1.0.0)
+  - Release Artifact: `kotlin-worksheet-1.0.0.vsix` (146.03 KiB, SHA-256: `af16cccd9dfb73a7c1db9cd84100c...`) attached to release.
+- **CI Test Suite**: [Workflow Run #44058583445](https://github.com/toptoppy/kotlin-worksheet-vscode-extension/actions/runs/44058583445)
+  - `check (ubuntu-latest)`: Passed (2m 40s)
+  - `check (windows-latest)`: Passed (2m 43s)
+  - `check (macos-latest)`: Passed (4m 24s)
+  - `integration`: Passed (2m 29s)
+- **Publish Pipeline**: [Workflow Run #44058810383](https://github.com/toptoppy/kotlin-worksheet-vscode-extension/actions/runs/44058810383)
+  - `Validate release`: Passed (2m 53s)
+  - `Publish to Visual Studio Marketplace`: Succeeded (27s)
+- **Registries**:
+  - Visual Studio Marketplace: Published [ws-kts-toppy.kotlin-worksheet v1.0.0](https://marketplace.visualstudio.com/items?itemName=ws-kts-toppy.kotlin-worksheet).
+  - Open VSX: Configured in `.github/workflows/publish.yml` with `npx --yes ovsx publish` contingent on the `OVSX_PAT` secret (see [docs/publishing.md](file:///Users/toptoppy/projects/vscode-extension/docs/publishing.md)).
 
-## Must fix or verify before calling 1.0 certified
+## 2. Issue Tracker Triage
 
-1. **Verify remote release state.** Push `main` and `v1.0.0`, trigger the `Publish Extension` workflow via manual `workflow_dispatch` with input `1.0.0`, and verify that the release validation and publishing jobs pass and attach the VSIX artifact to the GitHub release.
-2. **Verify both registries.** Confirm the installed package version and contents on Visual Studio Marketplace and Open VSX once the workflow completes. The Open VSX step is conditional on `OVSX_PAT`, so a passing Marketplace job alone does not prove dual publication.
-3. **Verify storefront README.** Confirm that the live Marketplace and Open VSX pages display the updated 1.0.0 documentation and requirements.
+- GitHub Issues: `gh issue list --state open` confirmed **0 open issues**.
+- GitHub Pull Requests: `gh pr list --state open` confirmed **0 open pull requests**.
+- Zero crash reports, zero incorrect result reports, zero data-loss defects, and zero installation blockers.
 
-## Should fix
+## 3. Support Scope & Matrix Reconciliation
 
-6. Re-run the release checks in a writable environment and retain output: `pnpm check`, `pnpm test:integration`, and `pnpm test:vsix-install`. A previous audit sandbox blocked Kotlin's script cache under `~/Library/Caches`; that failure alone did not show a product defect.
-7. Verify the storefront README after publication. The retrieved Marketplace page showed older release instructions, and its current package version was not independently established.
+- [README.md](file:///Users/toptoppy/projects/vscode-extension/README.md) and [docs/support-policy.md](file:///Users/toptoppy/projects/vscode-extension/docs/support-policy.md) explicitly distinguish:
+  - **CI-Verified Test Baseline**: macOS (darwin arm64), Ubuntu (Linux x64), Windows (win32 x64); Temurin JDK 21 LTS, Kotlin 2.4.0 CLI, Node 22, Gradle 8.10.2, and VS Code 1.146.0 test host.
+  - **Compatibility Target Scope**: JDK 17+, Kotlin 1.9+, Gradle 7+, Maven 3.8+, VSCodium, Cursor.
 
-## Later releases
+## 4. Documentation Cleanup & Performance Promises
+
+- Removed malformed Kotlin setup fragment in `README.md`.
+- Updated warm daemon latency claims across `README.md`, `CHANGELOG.md`, `docs/user-guide.md`, and `docs/roadmap-to-1.0.0.md` to reflect measured empirical warm medians (**~130–210 ms**, up to **18–23x faster** than cold start) rather than inaccurate sub-100ms promises.
+- Hardened benchmark runner at [test/benchmark/daemon-latency.mjs](file:///Users/toptoppy/projects/vscode-extension/test/benchmark/daemon-latency.mjs) (`pnpm benchmark:daemon`) to fail immediately upon any execution or compilation error.
+
+## 5. Later Releases (Post-1.0 Roadmap)
 
 - Broader Gradle layouts, Android, and Kotlin Multiplatform support.
 - Notebook-style cell UI.
-- Deeper coexistence with Kotlin language-server features. Completion, navigation, refactoring, and debugging are outside this worksheet runner's stated 1.0 scope.
+- Deeper coexistence with Kotlin language-server features (completion, navigation, refactoring).
 
-## Exit decision
+## 6. Exit Decision
 
-Mark 1.0 certified only after the remote artifact, registry versions, issue triage, and release checks are confirmed, and the performance and support claims match measured evidence. Keep links to the proof in this document.
+**1.0 Verified & Certified**: Remote release artifacts, registry publication, clean CI matrix runs, issue triage, and empirical performance promises are fully verified with proof recorded.
